@@ -1,0 +1,2751 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Produção Engecrol</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 20px; background-color: #3a3d42; color: #e0e0e0; }
+        
+        /* TELA DE LOGIN */
+        #login-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 99999; }
+        .login-card { background: #2b2d31; width: 380px; padding: 25px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); border-top: 5px solid #1F497D; color: #fff; }
+        .login-card h2 { color: #90caf9; margin-top: 0; font-size: 20px; text-align: center; }
+        .login-card p { font-size: 12px; color: #aaa; text-align: center; margin-bottom: 20px; }
+        .login-group { margin-bottom: 12px; display: flex; flex-direction: column; }
+        .login-group label { font-size: 11px; font-weight: bold; color: #ccc; margin-bottom: 4px; }
+        .login-group input, .login-group select { padding: 9px; border: 1px solid #444; border-radius: 4px; font-size: 13px; background: #33363b; color: #fff; }
+        .btn-login { background-color: #1F497D; color: white; border: none; padding: 10px; font-weight: bold; font-size: 13px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px; }
+        .btn-login:hover { background-color: #0d2c54; }
+        .login-error { color: #ff5252; font-size: 11px; text-align: center; margin-top: 8px; display: none; }
+
+        /* TOPO E PAINEL */
+        h1 { color: #90caf9; font-size: 24px; margin-bottom: 2px; }
+        p.developer-credit { color: #90caf9; font-size: 13px; font-weight: bold; margin-top: 0; margin-bottom: 6px; }
+        p.subtitle { color: #aaa; font-size: 12px; margin-top: 0; margin-bottom: 15px; }
+        
+        .top-tools { display: flex; gap: 12px; margin-bottom: 15px; align-items: stretch; flex-wrap: wrap; }
+        .import-box, .chart-box, .flow-box, .add-card-box, .config-box, .dashboard-box { background: #2b2d31; padding: 16px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); flex: 1; min-width: 175px; display: flex; flex-direction: column; justify-content: space-between; border: 1px solid #42454a; }
+        .import-box { border-top: 4px solid #2e7d32; }
+        .chart-box { border-top: 4px solid #f57f17; }
+        .flow-box { border-top: 4px solid #0d47a1; }
+        .add-card-box { border-top: 4px solid #1F497D; }
+        .config-box { border-top: 4px solid #8e24aa; }
+        .dashboard-box { border-top: 4px solid #00acc1; }
+        
+        h3 { margin-top: 0; color: #90caf9; font-size: 15px; margin-bottom: 6px; }
+        p.box-desc { font-size: 11px; color: #aaa; margin-bottom: 10px; margin-top: 0; }
+
+        .path-badge-container { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; }
+        .path-badge { font-size: 10px; font-family: monospace; background: #33363b; border: 1px solid #484c52; padding: 6px 8px; border-radius: 4px; color: #90caf9; flex-grow: 1; word-break: break-all; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .btn-copy-path { background-color: #555; color: white; border: none; padding: 6px 10px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer; white-space: nowrap; transition: background 0.2s; }
+        .btn-copy-path:hover { background-color: #333; }
+
+        .btn-sync, .btn-chart, .btn-flow, .btn-open-add, .btn-config, .btn-dashboard { color: white; border: none; padding: 12px 14px; font-weight: bold; font-size: 12px; border-radius: 6px; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: background 0.2s; }
+        .btn-sync { background-color: #2e7d32; } .btn-sync:hover { background-color: #1b5e20; }
+        .btn-chart { background-color: #f57f17; } .btn-chart:hover { background-color: #e65100; }
+        .btn-flow { background-color: #0d47a1; } .btn-flow:hover { background-color: #08306b; }
+        .btn-open-add { background-color: #1F497D; } .btn-open-add:hover { background-color: #0d2c54; }
+        .btn-config { background-color: #8e24aa; } .btn-config:hover { background-color: #6a1b9a; }
+        .btn-dashboard { background-color: #00acc1; } .btn-dashboard:hover { background-color: #00838f; }
+
+        .status-badge { font-size: 11px; margin-top: 8px; padding: 6px 10px; border-radius: 4px; background: #153319; color: #a5d6a7; font-weight: 500; display: block; text-align: center; border: 1px solid #2e7d32; }
+
+        /* BARRA DE FILTRO POR OPERADOR (ESTILO PÍLULA) E RECURSOS */
+        .resource-filter-bar { background: #2b2d31; padding: 12px 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #42454a; }
+        .filter-header-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .filter-bar-title { font-size: 13px; font-weight: bold; color: #90caf9; display: flex; align-items: center; gap: 6px; }
+        
+        .operator-pills-container { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; background: #33363b; padding: 10px 12px; border-radius: 6px; border: 1px solid #42454a; }
+        .op-pill { background-color: #2b2d31; color: #ccc; border: 1px solid #555; padding: 6px 12px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer; transition: all 0.2s; user-select: none; }
+        .op-pill:hover { background-color: #3f4248; color: #fff; border-color: #777; }
+        .op-pill.active { background-color: #1F497D; color: white; border-color: #337ab7; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+
+        .filter-section-subtitle { font-size: 11px; font-weight: bold; color: #aaa; margin-top: 2px; }
+        .filter-checkboxes-container { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; background: #33363b; padding: 8px 12px; border-radius: 6px; border: 1px solid #42454a; }
+        .checkbox-label { font-size: 11px; font-weight: bold; color: #ddd; display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
+        .checkbox-label input { accent-color: #1F497D; width: 14px; height: 14px; cursor: pointer; }
+        
+        .filter-actions { display: flex; gap: 8px; }
+        .btn-filter-action { background-color: #1F497D; color: white; border: none; padding: 6px 14px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer; transition: background 0.2s; }
+        .btn-filter-action:hover { background-color: #0d2c54; }
+        .btn-filter-clear { background-color: #484c52; color: #ddd; border: none; padding: 6px 14px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer; transition: background 0.2s; }
+        .btn-filter-clear:hover { background-color: #5c6068; }
+
+        /* LINHAS E QUADRO */
+        .rows-board { display: flex; flex-direction: column; gap: 12px; }
+        .machine-row { display: flex; background: #2b2d31; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); border: 1px solid #42454a; min-height: 140px; }
+        .machine-row.inativo { opacity: 0.5; filter: grayscale(80%); }
+        
+        .machine-header { width: 230px; min-width: 230px; background-color: #1F497D; color: white; padding: 12px; border-top-left-radius: 8px; border-bottom-left-radius: 8px; display: flex; flex-direction: column; justify-content: center; text-align: left; }
+        .machine-header h4 { margin: 0; font-size: 13px; font-weight: bold; line-height: 1.3; }
+        .machine-header span { font-size: 11px; opacity: 0.9; margin-top: 4px; font-weight: 500; }
+        
+        .card-row-list { display: flex; gap: 12px; padding: 12px; overflow-x: auto; flex-grow: 1; align-items: center; background-color: #33363b; border-top-right-radius: 8px; border-bottom-right-radius: 8px; transition: background-color 0.2s; min-height: 120px; }
+        .card-row-list.drag-over { background-color: #1b2a4a; border: 2px dashed #1565c0; }
+        
+        /* ESTILOS DOS CARTÕES */
+        .card { border-radius: 6px; padding: 12px; width: 340px; min-width: 340px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); cursor: default; transition: transform 0.1s, opacity 0.2s, background-color 0.3s; flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; user-select: none; position: relative; border: 1px solid #4c5056; }
+        .card.draggable-enabled { cursor: grab; }
+        .card.draggable-enabled:active { cursor: grabbing; }
+        .card.dragging { opacity: 0.4; transform: scale(0.98); }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 3px 6px rgba(0,0,0,0.4); }
+        
+        .card.status-processo { background-color: #1b2a4a; border-left: 6px solid #1976d2; border-color: #1976d2; }
+        .card.status-processo .card-status-indicator { color: #90caf9; font-weight: bold; font-size: 10px; background: #0d47a1; padding: 2px 6px; border-radius: 4px; }
+
+        .card.status-pausado { background-color: #4a381b; border-left: 6px solid #ffa726; border-color: #8c5a14; }
+        .card.status-pausado .card-status-indicator { color: #ffe0b2; font-weight: bold; font-size: 10px; background: #ef6c00; padding: 2px 6px; border-radius: 4px; }
+
+        .card.status-fila { background-color: #3b3112; border-left: 6px solid #fbc02d; border-color: #665014; }
+        .card.status-fila .card-status-indicator { color: #fff59d; font-weight: bold; font-size: 10px; background: #f57f17; padding: 2px 6px; border-radius: 4px; }
+
+        .card.status-concluido { background-color: #16361a; border-left: 6px solid #388e3c; opacity: 0.85; border-color: #244828; }
+        .card.status-concluido .card-of { text-decoration: line-through; color: #a5d6a7; }
+        .card.status-concluido .card-status-indicator { color: #a5d6a7; font-weight: bold; font-size: 10px; background: #2e7d32; padding: 2px 6px; border-radius: 4px; }
+
+        .card.status-conflito { background-color: #3b1b1b !important; border-left: 6px solid #d32f2f !important; border: 2px solid #d32f2f !important; }
+        .card.status-conflito .card-status-indicator { color: #ffcdd2; font-weight: bold; font-size: 10px; background: #c62828; padding: 2px 6px; border-radius: 4px; }
+
+        .card-header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px; }
+        .card-of { font-weight: bold; color: #90caf9; font-size: 13px; }
+        
+        .card-cod { font-weight: bold; color: #90caf9; font-size: 12px; }
+        .card-cod a { color: #64b5f6; text-decoration: underline; transition: color 0.2s; }
+        .card-cod a:hover { color: #90caf9; text-decoration: none; }
+        
+        .card-desc { font-size: 11px; color: #f0f0f0; font-weight: 600; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+        
+        .card-middle-row { display: flex; gap: 6px; align-items: center; margin-top: 2px; flex-wrap: wrap; }
+        .badge-tempo { background: #33363b; color: #90caf9; font-size: 10px; padding: 3px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap; border: 1px solid #4c5056; }
+        .badge-fase { background: #283593; color: #c5cae9; font-size: 10px; padding: 3px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap; border: 1px solid #3f51b5; }
+        .badge-qtd { background: #1b3320; color: #a5d6a7; font-size: 10px; padding: 3px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap; border: 1px solid #2e7d32; }
+        .badge-operacao { background: #3d2610; color: #ffb74d; font-size: 10px; padding: 3px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap; border: 1px solid #f57f17; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+        .badge-datas { background: #33363b; color: #a5d6a7; font-size: 10px; padding: 3px 6px; border-radius: 4px; font-weight: bold; flex-grow: 1; text-align: center; white-space: nowrap; border: 1px solid #4c5056; }
+
+        .card-footer-row { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px; margin-top: 2px; font-size: 10px; }
+        .card-client { color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
+        .card-pdv { font-weight: bold; color: #90caf9; }
+
+        .card-action-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; margin-top: 4px; padding-top: 4px; border-top: 1px dashed rgba(255,255,255,0.1); }
+        
+        .btn-iniciar, .btn-pausar, .btn-finalizar, .btn-voltar, .btn-editar-card { border: none; padding: 6px 4px; font-size: 9px; font-weight: bold; border-radius: 4px; cursor: pointer; transition: background 0.2s; text-align: center; }
+        .btn-iniciar { background-color: #1976d2; color: white; } .btn-iniciar:hover { background-color: #0d47a1; }
+        .btn-pausar { background-color: #ef6c00; color: white; } .btn-pausar:hover { background-color: #e65100; }
+        .btn-finalizar { background-color: #2e7d32; color: white; } .btn-finalizar:hover { background-color: #1b5e20; }
+        .btn-voltar { background-color: #c62828; color: white; } .btn-voltar:hover { background-color: #b71c1c; }
+        .btn-editar-card { background-color: #f57f17; color: white; display: flex; align-items: center; justify-content: center; gap: 2px; } .btn-editar-card:hover { background-color: #e65100; }
+        
+        .btn-iniciar.disabled, .btn-pausar.disabled, .btn-finalizar.disabled, .btn-voltar.disabled, .btn-editar-card.disabled { background-color: #484c52 !important; color: #888 !important; cursor: not-allowed !important; opacity: 0.5; pointer-events: none; }
+
+        /* MODAIS */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 9999; }
+        .modal-overlay.active { display: flex; }
+        
+        .modal-card { background: #2b2d31; width: 520px; max-width: 95%; max-height: 90vh; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); padding: 20px; position: relative; border: 1px solid #484c52; color: #fff; display: flex; flex-direction: column; }
+
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #42454a; padding-bottom: 10px; margin-bottom: 15px; flex-shrink: 0; }
+        .modal-header h3 { margin: 0; color: #90caf9; font-size: 16px; }
+        .modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: #aaa; font-weight: bold; }
+
+        .modal-body-scroll { overflow-y: auto; flex-grow: 1; padding-right: 4px; }
+        .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .modal-group { display: flex; flex-direction: column; }
+        .modal-group.full { grid-column: span 2; }
+        .modal-group label { font-size: 11px; font-weight: bold; color: #ccc; margin-bottom: 4px; }
+        .modal-group input, .modal-group select { padding: 8px; border: 1px solid #484c52; border-radius: 4px; font-size: 12px; background: #33363b; color: #fff; }
+
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; border-top: 1px solid #42454a; padding-top: 12px; flex-shrink: 0; }
+        .btn-modal-save { background-color: #1F497D; color: white; border: none; padding: 9px 16px; font-weight: bold; font-size: 12px; border-radius: 4px; cursor: pointer; }
+        .btn-modal-cancel { background-color: #484c52; color: #ddd; border: none; padding: 9px 16px; font-weight: bold; font-size: 12px; border-radius: 4px; cursor: pointer; }
+
+        /* CALENDÁRIO ANUAL GRID */
+        .calendar-grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .cal-month-box { background: #33363b; border: 1px solid #444; border-radius: 6px; padding: 8px; }
+        .cal-month-title { font-size: 11px; font-weight: bold; color: #90caf9; text-align: center; margin-bottom: 6px; }
+        .cal-days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; font-size: 9px; }
+        .cal-day-cell { background: #2b2d31; color: #ccc; padding: 3px 0; border-radius: 3px; cursor: pointer; user-select: none; }
+        .cal-day-cell.active { background: #1F497D; color: white; font-weight: bold; }
+        .cal-day-cell.off { background: #4a2828; color: #aaa; text-decoration: line-through; }
+
+        .info-panel { background: #2b2d31; padding: 12px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.3); margin-top: 15px; border: 1px solid #42454a; }
+        #log-output { font-family: monospace; font-size: 12px; color: #90caf9; background: #152238; padding: 8px 12px; border-radius: 4px; border: 1px solid #1d3557; }
+    </style>
+</head>
+<body>
+
+    <!-- TELA DE LOGIN DE ACESSO -->
+    <div id="login-overlay">
+        <div class="login-card">
+            <h2>🔐 Identificação de Acesso</h2>
+            <p>Painel de Produção - Engecrol</p>
+            <div class="login-group">
+                <label>Usuário / Perfil:</label>
+                <select id="login-user" onchange="togglePasswordPrompt()">
+                    <option value="PCP">PCP (Acesso Total)</option>
+                    <option value="Industrial">Industrial (Operador)</option>
+                </select>
+            </div>
+            <div class="login-group" id="pass-group">
+                <label id="pass-label">Senha:</label>
+                <input type="password" id="login-pass" placeholder="Digite a senha">
+            </div>
+            <button class="btn-login" onclick="realizarLogin()">ENTRAR NO PAINEL</button>
+            <div class="login-error" id="login-error-msg">Usuário ou senha incorretos!</div>
+        </div>
+    </div>
+
+    <h1>Painel de Produção Engecrol <span id="user-role-badge" style="font-size:12px; background:#1F497D; color:white; padding:3px 8px; border-radius:4px; vertical-align:middle;"></span></h1>
+    <p class="developer-credit">Desenvolvido por: Diego Milani utilizando recursos de IA</p>
+    <p class="subtitle">Acompanhamento e programação da produção fabril.</p>
+
+    <div class="top-tools">
+        <div class="import-box" id="import-box-container">
+            <div>
+                <h3>🔄 Relatório de Produção</h3>
+                <div class="path-badge-container">
+                    <div class="path-badge" id="path-text" title="G:\PLANEJAMENTO INDUSTRIAL\Programação PCP Fábrica.xlsm">G:\PLANEJAMENTO INDUSTRIAL\Programação PCP Fábrica.xlsm</div>
+                    <button class="btn-copy-path" onclick="copiarCaminhoPlanilha()">📋 Copiar</button>
+                </div>
+            </div>
+            <input type="file" id="excel-file-hidden" accept=".xlsx, .xls, .xlsm" style="display: none;" onchange="readSelectedFile()">
+            <button class="btn-sync" onclick="handleAutoRefreshBtn()"><span>🔄</span> <strong>ATUALIZAR PLANILHA</strong></button>
+            <div class="status-badge" id="sync-status">Status: Pronto para carregar</div>
+        </div>
+
+        <div class="chart-box pcp-only-tool">
+            <div>
+                <h3>📊 Gráficos</h3>
+                <p class="box-desc">Carga horária de máquinas e operações externas.</p>
+            </div>
+            <button class="btn-chart" onclick="openLiveChartTab()"><span>📊</span> <strong>GERAR GRÁFICO</strong></button>
+            <div style="font-size: 11px; color: #888; margin-top: 8px; text-align: center;">Atualização em tempo real</div>
+        </div>
+
+        <div class="flow-box pcp-only-tool">
+            <div>
+                <h3>📈 Fluxo</h3>
+                <p class="box-desc">Sequência de fases e prazos finais por produto.</p>
+            </div>
+            <button class="btn-flow" onclick="openLiveFlowTab()"><span>📈</span> <strong>GERAR FLUXO</strong></button>
+            <div style="font-size: 11px; color: #888; margin-top: 8px; text-align: center;">Detalhado por fases</div>
+        </div>
+
+        <div class="config-box pcp-only-tool">
+            <div>
+                <h3>⚙️ Configurações</h3>
+                <p class="box-desc">Calendário anual e recursos em manutenção/férias.</p>
+            </div>
+            <div style="display:flex; gap:4px;">
+                <button class="btn-config" onclick="openCalendarModal()" title="Calendário Anual">📅 Calendário</button>
+                <button class="btn-config" style="background-color:#c2185b;" onclick="openMaintenanceModal()" title="Recurso em Manutenção/Férias">🛠️ Inativos</button>
+            </div>
+            <div style="font-size: 11px; color: #888; margin-top: 8px; text-align: center;">Ajuste de carga</div>
+        </div>
+
+        <div class="dashboard-box pcp-only-tool">
+            <div>
+                <h3>📈 Dashboard</h3>
+                <p class="box-desc">Relatório gerencial completo em nova aba.</p>
+            </div>
+            <button class="btn-dashboard" onclick="openDashboardTab()"><span>📊</span> <strong>ABRIR DASHBOARD</strong></button>
+            <div style="font-size: 11px; color: #888; margin-top: 8px; text-align: center;">Visão gerencial expandida</div>
+        </div>
+
+        <div class="config-box pcp-only-tool" style="border-top-color: #00838f;">
+            <div>
+                <h3>📑 Relatório</h3>
+                <p class="box-desc">Exportar dados de histórico de produção reais coletados.</p>
+            </div>
+            <button class="btn-config" style="background-color:#00838f;" onclick="exportarRelatorioHistorico()" title="Exportar Relatório Excel">📥 Exportar Dados</button>
+            <div style="font-size: 11px; color: #888; margin-top: 8px; text-align: center;">Tempos reais e pausas</div>
+        </div>
+
+        <div class="add-card-box" id="box-add-card-container">
+            <div>
+                <h3>➕ Novo Cartão</h3>
+                <p class="box-desc">Insira manualmente uma nova ordem de fabricação.</p>
+            </div>
+            <button class="btn-open-add" onclick="openAddModal()"><span>➕</span> <strong>ADICIONAR</strong></button>
+            <div style="font-size: 11px; color: #888; margin-top: 8px; text-align: center;">Via Pop-up</div>
+        </div>
+    </div>
+
+    <!-- BARRA DE FILTROS (FILTRAR OPERADOR EM PÍLULA + RECURSOS) -->
+    <div class="resource-filter-bar" id="resource-filter-bar">
+        <div class="filter-header-row" id="filter-header-row">
+            <span class="filter-bar-title">🎛️ Painel de Filtros e Recursos:</span>
+            <div class="filter-actions">
+                <button class="btn-filter-action" onclick="aplicarFiltrosCombinados()">Aplicar Recursos</button>
+                <button class="btn-filter-clear" onclick="limparFiltros()">Mostrar Todos</button>
+            </div>
+        </div>
+
+        <!-- Linha de caminho para o operador -->
+        <div id="operator-path-row" style="display: none; align-items: center; gap: 10px; background: #33363b; padding: 10px 12px; border-radius: 6px; border: 1px solid #42454a; margin-bottom: 4px;">
+            <span style="font-size: 11px; font-weight: bold; color: #90caf9; white-space: nowrap;">📁 Arquivo Base:</span>
+            <div class="path-badge" title="G:\PLANEJAMENTO INDUSTRIAL\Programação PCP Fábrica.xlsm" style="margin-bottom: 0;">G:\PLANEJAMENTO INDUSTRIAL\Programação PCP Fábrica.xlsm</div>
+            <button class="btn-copy-path" onclick="copiarCaminhoPlanilha()">📋 Copiar Caminho</button>
+        </div>
+
+        <!-- Linha principal para o perfil operador (Botão Atualizar + Filtro Operador na mesma linha) -->
+        <div id="operator-main-row" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;"></div>
+
+        <div id="standard-operator-section">
+            <div class="filter-section-subtitle" style="margin-bottom: 6px;">👤 Filtrar Operador:</div>
+            <div class="operator-pills-container" id="operator-pills-bar">
+                <button class="op-pill active" onclick="filtrarPorOperadorPill('TODOS', this)">Todos</button>
+                <button class="op-pill" onclick="filtrarPorOperadorPill('Fernando', this)">Fernando</button>
+                <button class="op-pill" onclick="filtrarPorOperadorPill('Anderson', this)">Anderson</button>
+                <button class="op-pill" onclick="filtrarPorOperadorPill('Renan', this)">Renan</button>
+                <button class="op-pill" onclick="filtrarPorOperadorPill('Nei', this)">Nei</button>
+                <button class="op-pill" onclick="filtrarPorOperadorPill('Wendell', this)">Wendell</button>
+                <button class="op-pill" onclick="filtrarPorOperadorPill('Arnaldo', this)">Arnaldo</button>
+                <button class="op-pill" onclick="filtrarPorOperadorPill('Rinaldo', this)">Rinaldo</button>
+                <button class="op-pill" onclick="filtrarPorOperadorPill('Sérgio', this)">Sérgio</button>
+                <button class="op-pill" onclick="filtrarPorOperadorPill('Piva', this)">Piva</button>
+                <button class="op-pill" onclick="filtrarPorOperadorPill('André', this)">André</button>
+            </div>
+        </div>
+
+        <div id="resource-filter-section">
+            <div class="filter-section-subtitle" style="margin-bottom: 6px;">⚙️ Filtrar por Recurso / Posto de Trabalho:</div>
+            <div class="filter-checkboxes-container">
+                <label class="checkbox-label"><input type="checkbox" value="posto-13" class="chk-recurso"> 13 - Torno Travis</label>
+                <label class="checkbox-label"><input type="checkbox" value="posto-203" class="chk-recurso"> 203 - Fresa Starrag</label>
+                <label class="checkbox-label"><input type="checkbox" value="posto-202" class="chk-recurso"> 202 - Fresa Starrag 1</label>
+                <label class="checkbox-label"><input type="checkbox" value="posto-201-200" class="chk-recurso"> 201/200 - Fresa Fluri</label>
+                <label class="checkbox-label"><input type="checkbox" value="posto-100" class="chk-recurso"> 100 - Torno Quasar</label>
+                <label class="checkbox-label"><input type="checkbox" value="posto-101" class="chk-recurso"> 101 - Torno Clever 2M</label>
+                <label class="checkbox-label"><input type="checkbox" value="posto-102" class="chk-recurso"> 102 - Torno Veker</label>
+                <label class="checkbox-label"><input type="checkbox" value="posto-103" class="chk-recurso"> 103 - Torno Clever 4M</label>
+                <label class="checkbox-label"><input type="checkbox" value="posto-104" class="chk-recurso"> 104 - Torno Nardini</label>
+                <label class="checkbox-label"><input type="checkbox" value="posto-27" class="chk-recurso"> 27 - Bancada Ajuste</label>
+                <label class="checkbox-label pcp-only-tool"><input type="checkbox" value="posto-logistica" class="chk-recurso"> 28 - Logística</label>
+                <label class="checkbox-label pcp-only-tool"><input type="checkbox" value="posto-qualidade" class="chk-recurso"> 26 - Inspeção</label>
+                <label class="checkbox-label pcp-only-tool"><input type="checkbox" value="posto-ultrasom" class="chk-recurso"> Ultrasom</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- LINHAS DOS POSTOS DE TRABALHO -->
+    <div class="rows-board">
+        <div class="machine-row" id="posto-13" data-operador="Fernando"><div class="machine-header"><h4>13 - Torno CNC Travis</h4><span>Operador: Fernando</span></div><div class="card-row-list"></div></div>
+        <div class="machine-row" id="posto-203" data-operador="Anderson"><div class="machine-header"><h4>203 - Fresa CNC Starrag</h4><span>Operador: Anderson</span></div><div class="card-row-list"></div></div>
+        <div class="machine-row" id="posto-202" data-operador="Renan"><div class="machine-header"><h4>202 - Fresa CNC Starrag 1</h4><span>Operador: Renan</span></div><div class="card-row-list"></div></div>
+        <div class="machine-row" id="posto-201-200" data-operador="Nei"><div class="machine-header"><h4>201/200 - Fresa Conv. Fluri/Atlasmaq</h4><span>Operador: Nei</span></div><div class="card-row-list"></div></div>
+        <div class="machine-row" id="posto-100" data-operador="Wendell"><div class="machine-header"><h4>100 - Torno Horizontal Quasar</h4><span>Operador: Wendell</span></div><div class="card-row-list"></div></div>
+        <div class="machine-row" id="posto-101" data-operador="Arnaldo"><div class="machine-header"><h4>101 - Torno Horizontal Clever 2M</h4><span>Operador: Arnaldo</span></div><div class="card-row-list"></div></div>
+        <div class="machine-row" id="posto-102" data-operador="Rinaldo"><div class="machine-header"><h4>102 - Torno Horizontal Veker</h4><span>Operador: Rinaldo</span></div><div class="card-row-list"></div></div>
+        <div class="machine-row" id="posto-103" data-operador="Sérgio"><div class="machine-header"><h4>103 - Torno Horizontal Clever 4M</h4><span>Operador: Sérgio</span></div><div class="card-row-list"></div></div>
+        <div class="machine-row" id="posto-104" data-operador="Piva"><div class="machine-header"><h4>104 - Torno Horizontal Nardini</h4><span>Operador: Piva</span></div><div class="card-row-list"></div></div>
+        <div class="machine-row" id="posto-27" data-operador="André"><div class="machine-header"><h4>27 - Bancada de Ajuste</h4><span>Operador: André</span></div><div class="card-row-list"></div></div>
+        <!-- Recursos Logística, Inspeção e Ultrasom visíveis no painel apenas para o perfil PCP -->
+        <div class="machine-row pcp-only-tool" id="posto-logistica" data-operador="Logística"><div class="machine-header"><h4>28 - Logística</h4><span>Operador: Logística</span></div><div class="card-row-list"></div></div>
+        <div class="machine-row pcp-only-tool" id="posto-qualidade" data-operador="Qualidade"><div class="machine-header"><h4>26 - Inspeção de Produto Final</h4><span>Operador: Qualidade</span></div><div class="card-row-list"></div></div>
+        <div class="machine-row pcp-only-tool" id="posto-ultrasom" data-operador="Ultrasom"><div class="machine-header"><h4>Ultrasom</h4><span>Operador: Ultrasom</span></div><div class="card-row-list"></div></div>
+        <!-- Operação Externa oculta no painel principal, mas ativa para o gráfico -->
+        <div class="machine-row" id="posto-externa" style="display:none;" data-operador="Externo"><div class="machine-header"><h4>207 - Operação Externa</h4><span>Operador: Externo</span></div><div class="card-row-list"></div></div>
+    </div>
+
+    <!-- MODAL CALENDÁRIO ANUAL COM SELETOR DE ANO -->
+    <div class="modal-overlay" id="modal-calendar">
+        <div class="modal-card" style="width: 720px;">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <h3>📅 Calendário Fabril</h3>
+                    <select id="select-calendar-year" onchange="mudarAnoCalendario(this.value)" style="padding:4px 8px; background:#33363b; color:#90caf9; border:1px solid #555; border-radius:4px; font-weight:bold;">
+                        <option value="2025">2025</option>
+                        <option value="2026" selected>2026</option>
+                        <option value="2027">2027</option>
+                        <option value="2028">2028</option>
+                        <option value="2029">2029</option>
+                        <option value="2030">2030</option>
+                    </select>
+                </div>
+                <button class="modal-close" onclick="closeCalendarModal()">✕</button>
+            </div>
+            <div class="modal-body-scroll">
+                <div style="margin-bottom:12px; display:flex; gap:15px; align-items:center; flex-wrap:wrap;">
+                    <div class="modal-group" style="flex:1"><label>Início Expediente:</label><input type="time" id="cfg-t1-ini" value="07:00"></div>
+                    <div class="modal-group" style="flex:1"><label>Fim Turno 1 (Almoço):</label><input type="time" id="cfg-t1-fim" value="12:00"></div>
+                    <div class="modal-group" style="flex:1"><label>Início Turno 2:</label><input type="time" id="cfg-t2-ini" value="13:00"></div>
+                    <div class="modal-group" style="flex:1"><label>Fim Expediente:</label><input type="time" id="cfg-t2-fim" value="17:00"></div>
+                </div>
+                <p style="font-size:11px; color:#aaa; margin-bottom:8px;">Clique nos dias para ativar ou desativar o expediente (ex: feriados e folgas):</p>
+                <div class="calendar-grid-container" id="annual-calendar-grid"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-cancel" onclick="closeCalendarModal()">Cancelar</button>
+                <button class="btn-modal-save" onclick="saveCalendarConfig()">Salvar Calendário</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL RECURSOS EM MANUTENÇÃO / FÉRIAS -->
+    <div class="modal-overlay" id="modal-maintenance">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>🛠️ Recurso em Manutenção / Férias</h3>
+                <button class="modal-close" onclick="closeMaintenanceModal()">✕</button>
+            </div>
+            <div class="modal-body-scroll">
+                <p style="font-size:11px; color:#aaa; margin-top:0;">Selecione os recursos parados e estipule o período de indisponibilidade:</p>
+                <div class="modal-group full" style="gap:10px; display:flex; flex-direction:column;" id="maintenance-items-container"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-cancel" onclick="closeMaintenanceModal()">Cancelar</button>
+                <button class="btn-modal-save" onclick="saveMaintenanceConfig()">Salvar Manutenções/Férias</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ADICIONAR -->
+    <div class="modal-overlay" id="modal-add">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>➕ Adicionar Novo Cartão no Quadro</h3>
+                <button class="modal-close" onclick="closeAddModal()">✕</button>
+            </div>
+            <div class="modal-body-scroll modal-grid">
+                <div class="modal-group"><label>Número da OF:</label><input type="text" id="add-of" placeholder="Ex: 1600"></div>
+                <div class="modal-group"><label>Ano da OF:</label><input type="text" id="add-ano" value="2026"></div>
+                <div class="modal-group"><label>Código Produto:</label><input type="text" id="add-prod" placeholder="Ex: PEC.ADOL.0500"></div>
+                <div class="modal-group"><label>Quantidade:</label><input type="number" id="add-qtd" value="1"></div>
+                <div class="modal-group"><label>Seq. Fase:</label><input type="number" id="add-fase" value="1"></div>
+                <div class="modal-group"><label>Tempo (Minutos):</label><input type="number" id="add-tempo" value="60"></div>
+                <div class="modal-group"><label>Data/Hora Início Manual (Opcional):</label><input type="datetime-local" id="add-data-inicio"></div>
+                <div class="modal-group"><label>Data Entrega PDV:</label><input type="date" id="add-data-entrega-pdv"></div>
+                <div class="modal-group full"><label>Operação (Coluna J):</label><input type="text" id="add-operacao" placeholder="Ex: 21 - LOGÍSTICA"></div>
+                <div class="modal-group full"><label>Descrição / Operação:</label><input type="text" id="add-desc" placeholder="Ex: Anel Defletor"></div>
+                <div class="modal-group full"><label>Link do Desenho (URL ou Rede):</label><input type="text" id="add-link" placeholder="Ex: file://SRV-ENGE-DC03/..."></div>
+                <div class="modal-group"><label>Cliente:</label><input type="text" id="add-cliente" placeholder="Ex: Oxiteno S.A."></div>
+                <div class="modal-group"><label>PDV:</label><input type="text" id="add-pdv" placeholder="Ex: 5489"></div>
+                <div class="modal-group full">
+                    <label>Posto de Trabalho (Linha):</label>
+                    <select id="add-posto">
+                        <option value="posto-13">13 - Torno CNC Travis (Fernando)</option>
+                        <option value="posto-203">203 - Fresa CNC Starrag (Anderson)</option>
+                        <option value="posto-202">202 - Fresa CNC Starrag 1 (Renan)</option>
+                        <option value="posto-201-200">201/200 - Fresa Conv. Fluri/Atlasmaq (Nei)</option>
+                        <option value="posto-100">100 - Torno Horizontal Quasar (Wendell)</option>
+                        <option value="posto-101">101 - Torno Horizontal Clever 2M (Arnaldo)</option>
+                        <option value="posto-102">102 - Torno Horizontal Veker (Rinaldo)</option>
+                        <option value="posto-103">103 - Torno Horizontal Clever 4M (Sérgio)</option>
+                        <option value="posto-104">104 - Torno Horizontal Nardini (Piva)</option>
+                        <option value="posto-27">27 - Bancada de Ajuste (André)</option>
+                        <option value="posto-logistica">28 - Logística</option>
+                        <option value="posto-qualidade">26 - Inspeção de Produto Final</option>
+                        <option value="posto-ultrasom">Ultrasom</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-cancel" onclick="closeAddModal()">Cancelar</button>
+                <button class="btn-modal-save" onclick="saveNewCardFromModal()">Salvar Cartão</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDITAR -->
+    <div class="modal-overlay" id="modal-edit">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>✏️ Alterar Informações do Cartão</h3>
+                <button class="modal-close" onclick="closeEditModal()">✕</button>
+            </div>
+            <input type="hidden" id="edit-card-id">
+            <div class="modal-body-scroll modal-grid">
+                <div class="modal-group"><label>Número da OF:</label><input type="text" id="edit-of"></div>
+                <div class="modal-group"><label>Ano da OF:</label><input type="text" id="edit-ano"></div>
+                <div class="modal-group"><label>Código Produto:</label><input type="text" id="edit-prod"></div>
+                <div class="modal-group"><label>Quantidade:</label><input type="number" id="edit-qtd"></div>
+                <div class="modal-group"><label>Seq. Fase:</label><input type="number" id="edit-fase"></div>
+                <div class="modal-group"><label>Tempo (Minutos):</label><input type="number" id="edit-tempo"></div>
+                <div class="modal-group"><label>Data/Hora Início Manual (Opcional):</label><input type="datetime-local" id="edit-data-inicio"></div>
+                <div class="modal-group"><label>Data Entrega PDV:</label><input type="date" id="edit-data-entrega-pdv"></div>
+                <div class="modal-group full"><label>Operação (Coluna J):</label><input type="text" id="edit-operacao"></div>
+                <div class="modal-group full"><label>Descrição / Operação:</label><input type="text" id="edit-desc"></div>
+                <div class="modal-group full"><label>Link do Desenho (URL ou Rede):</label><input type="text" id="edit-link"></div>
+                <div class="modal-group"><label>Cliente:</label><input type="text" id="edit-cliente"></div>
+                <div class="modal-group"><label>PDV:</label><input type="text" id="edit-pdv"></div>
+                <div class="modal-group full">
+                    <label>Posto de Trabalho (Mover de Linha):</label>
+                    <select id="edit-posto">
+                        <option value="posto-13">13 - Torno CNC Travis (Fernando)</option>
+                        <option value="posto-203">203 - Fresa CNC Starrag (Anderson)</option>
+                        <option value="posto-202">202 - Fresa CNC Starrag 1 (Renan)</option>
+                        <option value="posto-201-200">201/200 - Fresa Conv. Fluri/Atlasmaq (Nei)</option>
+                        <option value="posto-100">100 - Torno Horizontal Quasar (Wendell)</option>
+                        <option value="posto-101">101 - Torno Horizontal Clever 2M (Arnaldo)</option>
+                        <option value="posto-102">102 - Torno Horizontal Veker (Rinaldo)</option>
+                        <option value="posto-103">103 - Torno Horizontal Clever 4M (Sérgio)</option>
+                        <option value="posto-104">104 - Torno Horizontal Nardini (Piva)</option>
+                        <option value="posto-27">27 - Bancada de Ajuste (André)</option>
+                        <option value="posto-logistica">28 - Logística</option>
+                        <option value="posto-qualidade">26 - Inspeção de Produto Final</option>
+                        <option value="posto-ultrasom">Ultrasom</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-cancel" onclick="closeEditModal()">Cancelar</button>
+                <button class="btn-modal-save" onclick="saveEditedCardFromModal()">Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-panel">
+        <h3>Histórico / Log do Sistema</h3>
+        <div id="log-output">Aguardando ações. Faça login para iniciar.</div>
+    </div>
+
+    <script>
+        var currentUserRole = null;
+        var cardCounter = 0;
+        var draggedCard = null;
+        var sourceRow = null;
+        
+        let cachedFileHandle = null;
+        let systemAuditLog = [];
+        let currentSelectedOperador = 'TODOS';
+
+        let fabConfig = {
+            selectedYear: 2026,
+            diasDesativados: [
+                "2026-01-01", "2026-04-21", "2026-05-01", "2026-09-07", 
+                "2026-10-12", "2026-11-02", "2026-11-15", "2026-12-25"
+            ],
+            t1StartMins: 420,
+            t1EndMins: 720,
+            t2StartMins: 780,
+            t2EndMins: 1020,
+            recursosInativos: {}
+        };
+
+        function registrarAuditoria(tipoAcao, ofNum, detalhes) {
+            var agora = new Date();
+            var entry = {
+                timestamp: agora.toISOString(),
+                dataFormatada: agora.toLocaleString(),
+                usuario: currentUserRole || 'Não logado',
+                acao: tipoAcao,
+                of: ofNum,
+                detalhes: detalhes
+            };
+            systemAuditLog.push(entry);
+        }
+
+        function copiarCaminhoPlanilha() {
+            var caminho = "G:\\PLANEJAMENTO INDUSTRIAL\\Programação PCP Fábrica.xlsm";
+            navigator.clipboard.writeText(caminho).then(function() {
+                alert("✔ Caminho copiado para a área de transferência!\n\n" + caminho);
+            }, function(err) {
+                alert("Erro ao copiar caminho: " + err);
+            });
+        }
+
+        var pcpBroadcastChannel = new BroadcastChannel('pcp_data_channel');
+
+        function togglePasswordPrompt() {
+            var passGroup = document.getElementById('pass-group');
+            passGroup.style.display = 'flex';
+        }
+
+        function realizarLogin() {
+            var user = document.getElementById('login-user').value;
+            var pass = document.getElementById('login-pass').value;
+            var errorMsg = document.getElementById('login-error-msg');
+
+            if (user === 'PCP') {
+                if (pass === 'PCP') {
+                    currentUserRole = 'PCP';
+                    concluirLoginComSucesso();
+                } else {
+                    errorMsg.innerText = "Senha incorreta para PCP!";
+                    errorMsg.style.display = 'block';
+                }
+            } else if (user === 'Industrial') {
+                if (pass === '123') {
+                    currentUserRole = 'Industrial';
+                    concluirLoginComSucesso();
+                } else {
+                    errorMsg.innerText = "Senha incorreta para Operador (Use 123)!";
+                    errorMsg.style.display = 'block';
+                }
+            }
+        }
+
+        function concluirLoginComSucesso() {
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('user-role-badge').innerText = "Perfil: " + (currentUserRole === 'PCP' ? 'Analista PCP' : 'Operador Industrial');
+
+            var importBox = document.getElementById('import-box-container');
+            var resFilterSec = document.getElementById('resource-filter-section');
+            var filterHeaderRow = document.getElementById('filter-header-row');
+            var opPathRow = document.getElementById('operator-path-row');
+            var opMainRow = document.getElementById('operator-main-row');
+            var opPillsSection = document.getElementById('standard-operator-section');
+
+            if (currentUserRole === 'Industrial') {
+                var addBox = document.getElementById('box-add-card-container');
+                if (addBox) addBox.style.display = 'none';
+
+                document.querySelectorAll('.pcp-only-tool').forEach(el => {
+                    el.style.display = 'none';
+                });
+
+                if (importBox) importBox.style.display = 'none';
+                if (resFilterSec) resFilterSec.style.display = 'none';
+                if (filterHeaderRow) filterHeaderRow.style.display = 'none';
+                if (opPathRow) opPathRow.style.display = 'flex';
+
+                let syncBtn = document.getElementById('btn-sync-operator');
+                if (!syncBtn) {
+                    syncBtn = document.createElement('button');
+                    syncBtn.id = 'btn-sync-operator';
+                    syncBtn.className = 'btn-sync';
+                    syncBtn.style.width = 'auto';
+                    syncBtn.style.padding = '8px 14px';
+                    syncBtn.style.flexShrink = '0';
+                    syncBtn.innerHTML = '<span>🔄</span> <strong>ATUALIZAR PLANILHA</strong>';
+                    syncBtn.onclick = handleAutoRefreshBtn;
+                }
+                if (opMainRow) {
+                    opMainRow.style.display = 'flex';
+                    opMainRow.style.alignItems = 'center';
+                    opMainRow.style.gap = '12px';
+                    opMainRow.style.flexWrap = 'wrap';
+                    opMainRow.appendChild(syncBtn);
+                    opMainRow.appendChild(opPillsSection);
+                }
+            } else {
+                document.querySelectorAll('.pcp-only-tool').forEach(el => {
+                    el.style.display = 'flex';
+                });
+                var addBox = document.getElementById('box-add-card-container');
+                if (addBox) addBox.style.display = 'flex';
+
+                if (importBox) importBox.style.display = 'flex';
+                if (resFilterSec) resFilterSec.style.display = 'block';
+                if (filterHeaderRow) filterHeaderRow.style.display = 'flex';
+                if (opPathRow) opPathRow.style.display = 'none';
+
+                var filterBar = document.getElementById('resource-filter-bar');
+                if (filterBar && opPillsSection) {
+                    filterBar.insertBefore(opPillsSection, resFilterSec);
+                }
+            }
+
+            registrarAuditoria("LOGIN", "SISTEMA", "Login efetuado como " + currentUserRole);
+            document.getElementById('log-output').innerHTML = "✔ Logado com sucesso como <b>" + currentUserRole + "</b>. Clique em <b>Atualizar Planilha</b> para carregar os dados.";
+        }
+
+        function openCalendarModal() {
+            if (currentUserRole !== 'PCP') { alert("Acesso restrito ao PCP."); return; }
+            document.getElementById('select-calendar-year').value = fabConfig.selectedYear;
+            gerarGridCalendarioAnual(fabConfig.selectedYear);
+            document.getElementById('modal-calendar').classList.add('active');
+        }
+        function closeCalendarModal() { document.getElementById('modal-calendar').classList.remove('active'); }
+
+        function mudarAnoCalendario(anoStr) {
+            fabConfig.selectedYear = parseInt(anoStr);
+            fabConfig.diasDesativados = [
+                `${fabConfig.selectedYear}-01-01`,
+                `${fabConfig.selectedYear}-04-21`,
+                `${fabConfig.selectedYear}-05-01`,
+                `${fabConfig.selectedYear}-09-07`,
+                `${fabConfig.selectedYear}-10-12`,
+                `${fabConfig.selectedYear}-11-02`,
+                `${fabConfig.selectedYear}-11-15`,
+                `${fabConfig.selectedYear}-12-25`
+            ];
+            gerarGridCalendarioAnual(fabConfig.selectedYear);
+        }
+
+        function gerarGridCalendarioAnual(ano) {
+            var container = document.getElementById('annual-calendar-grid');
+            container.innerHTML = "";
+            var mesesNomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+            for (var m = 0; m < 12; m++) {
+                var mBox = document.createElement('div');
+                mBox.className = 'cal-month-box';
+                var mTitle = document.createElement('div');
+                mTitle.className = 'cal-month-title';
+                mTitle.innerText = mesesNomes[m] + " " + ano;
+                mBox.appendChild(mTitle);
+
+                var daysGrid = document.createElement('div');
+                daysGrid.className = 'cal-days-grid';
+
+                ["D","S","T","Q","Q","S","S"].forEach(d => {
+                    var dLbl = document.createElement('div');
+                    dLbl.style.fontSize = '8px';
+                    dLbl.style.color = '#888';
+                    dLbl.innerText = d;
+                    daysGrid.appendChild(dLbl);
+                });
+
+                var firstDay = new Date(ano, m, 1).getDay();
+                var totalDays = new Date(ano, m + 1, 0).getDate();
+
+                for (var x = 0; x < firstDay; x++) {
+                    var emptyCell = document.createElement('div');
+                    daysGrid.appendChild(emptyCell);
+                }
+
+                for (var d = 1; d <= totalDays; d++) {
+                    var dayCell = document.createElement('div');
+                    dayCell.className = 'cal-day-cell active';
+                    var mmStr = String(m + 1).padStart(2, '0');
+                    var ddStr = String(d).padStart(2, '0');
+                    var dateKey = `${ano}-${mmStr}-${ddStr}`;
+                    
+                    dayCell.innerText = d;
+                    dayCell.dataset.date = dateKey;
+
+                    if (fabConfig.diasDesativados.includes(dateKey)) {
+                        dayCell.className = 'cal-day-cell off';
+                    }
+
+                    dayCell.onclick = function() {
+                        var dKey = this.dataset.date;
+                        if (fabConfig.diasDesativados.includes(dKey)) {
+                            fabConfig.diasDesativados = fabConfig.diasDesativados.filter(item => item !== dKey);
+                            this.className = 'cal-day-cell active';
+                        } else {
+                            fabConfig.diasDesativados.push(dKey);
+                            this.className = 'cal-day-cell off';
+                        }
+                    };
+
+                    daysGrid.appendChild(dayCell);
+                }
+                mBox.appendChild(daysGrid);
+                container.appendChild(mBox);
+            }
+        }
+
+        function saveCalendarConfig() {
+            var t1i = document.getElementById('cfg-t1-ini').value.split(':');
+            var t1f = document.getElementById('cfg-t1-fim').value.split(':');
+            var t2i = document.getElementById('cfg-t2-ini').value.split(':');
+            var t2f = document.getElementById('cfg-t2-fim').value.split(':');
+
+            fabConfig.t1StartMins = parseInt(t1i[0])*60 + parseInt(t1i[1]);
+            fabConfig.t1EndMins = parseInt(t1f[0])*60 + parseInt(t1f[1]);
+            fabConfig.t2StartMins = parseInt(t2i[0])*60 + parseInt(t2i[1]);
+            fabConfig.t2EndMins = parseInt(t2f[0])*60 + parseInt(t2f[1]);
+
+            closeCalendarModal();
+            document.getElementById('log-output').innerHTML = "📅 <b>Calendário Anual atualizado:</b> Ano " + fabConfig.selectedYear + " salvo. Recalculando cronograma...";
+            document.querySelectorAll('.card-row-list').forEach(list => updateRowStatusAndSchedule(list));
+            registrarAuditoria("CONFIG_CALENDAR", "GERAL", "Calendário anual " + fabConfig.selectedYear + " atualizado.");
+        }
+
+        function openDashboardTab() {
+            notifyChartUpdate();
+            var dashWindow = window.open('', 'Dashboard_PCP_Expandido');
+
+            var dashHTML = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>📈 Dashboard Gerencial Executivo - PCP</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"><\/script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 20px; background: #121212; color: #e0e0e0; }
+        .header { background: #00acc1; color: white; padding: 15px 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .header h2 { margin: 0; font-size: 18px; }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .badge-live { background: #2e7d32; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .btn-export-dash { background-color: #2e7d32; color: white; border: none; padding: 8px 14px; font-weight: bold; font-size: 12px; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
+        .btn-export-dash:hover { background-color: #1b5e20; }
+        .filter-grid { background: #1e1e1e; padding: 15px; border-radius: 8px; border: 1px solid #333; display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .modal-group { display: flex; flex-direction: column; }
+        .modal-group label { font-size: 11px; font-weight: bold; color: #90caf9; margin-bottom: 4px; }
+        .modal-group select { padding: 8px; background: #2d2d2d; color: #fff; border: 1px solid #444; border-radius: 4px; font-size: 12px; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .kpi-card { background: #1e1e1e; padding: 15px; border-radius: 8px; border: 1px solid #333; text-align: center; }
+        .kpi-title { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; }
+        .kpi-value { font-size: 24px; font-weight: bold; color: #90caf9; margin-top: 6px; }
+        .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .section-box { background: #1e1e1e; padding: 20px; border-radius: 8px; border: 1px solid #333; }
+        .section-box h3 { margin-top: 0; color: #90caf9; font-size: 15px; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 15px; }
+        .status-list { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #ccc; }
+        .status-row { display: flex; justify-content: space-between; background: #252525; padding: 8px 12px; border-radius: 4px; border: 1px solid #333; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>📈 Dashboard Gerencial Executivo - Produção PCP</h2>
+        <div class="header-actions">
+            <button class="btn-export-dash" onclick="exportarDashboardExcel()">📥 Exportar Dashboard Excel</button>
+            <span class="badge-live">● TEMPO REAL</span>
+        </div>
+    </div>
+
+    <div class="filter-grid">
+        <div class="modal-group">
+            <label>Filtrar por Recurso / Máquina:</label>
+            <select id="dash-filter-recurso" onchange="renderDashboardData(window.lastPayload)">
+                <option value="TODOS">Todos os Recursos</option>
+            </select>
+        </div>
+        <div class="modal-group">
+            <label>Filtrar por PDV:</label>
+            <select id="dash-filter-pdv" onchange="renderDashboardData(window.lastPayload)">
+                <option value="TODOS">Todos os PDVs</option>
+            </select>
+        </div>
+        <div class="modal-group">
+            <label>Filtrar por Cliente:</label>
+            <select id="dash-filter-cliente" onchange="renderDashboardData(window.lastPayload)">
+                <option value="TODOS">Todos os Clientes</option>
+            </select>
+        </div>
+        <div class="modal-group">
+            <label>Filtrar por Status:</label>
+            <select id="dash-filter-status" onchange="renderDashboardData(window.lastPayload)">
+                <option value="TODOS">Todos os Status</option>
+                <option value="Na Fila">Na Fila</option>
+                <option value="Em Processo">Em Processo</option>
+                <option value="Pausado">Pausado</option>
+                <option value="Concluído">Concluído</option>
+                <option value="Conflito">Conflito</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-title">Total de OFs Filtradas</div><div id="kpi-ofs" class="kpi-value">0</div></div>
+        <div class="kpi-card"><div class="kpi-title">Ordens Concluídas</div><div id="kpi-conc" class="kpi-value" style="color:#a5d6a7;">0</div></div>
+        <div class="kpi-card"><div class="kpi-title">Ordens Pausadas</div><div id="kpi-pausadas" class="kpi-value" style="color:#ffa726;">0</div></div>
+        <div class="kpi-card"><div class="kpi-title">Carga Total (Horas)</div><div id="kpi-horas" class="kpi-value" style="color:#42a5f5;">0h</div></div>
+    </div>
+
+    <div class="content-grid">
+        <div class="section-box">
+            <h3>📊 Resumo por Status de Fabricação</h3>
+            <div id="status-details-list" class="status-list"></div>
+        </div>
+        <div class="section-box">
+            <h3>⏱️ Distribuição Visual por Status</h3>
+            <canvas id="dashPieChart" height="150"><\/canvas>
+        </div>
+    </div>
+
+    <script>
+        var dashPieChartObj = null;
+        window.lastPayload = null;
+
+        function popularFiltrosDinamicos(payload) {
+            if (!payload || !payload.machines) return;
+
+            var recursosSet = new Set();
+            var pdvSet = new Set();
+            var clienteSet = new Set();
+
+            payload.machines.forEach(m => {
+                recursosSet.add(m.name);
+                m.cards.forEach(c => {
+                    if (c.pdv && c.pdv !== 'N/A' && c.pdv !== '0') pdvSet.add(c.pdv);
+                    if (c.cliente && c.cliente !== 'Não informado') clienteSet.add(c.cliente);
+                });
+            });
+
+            var recSelect = document.getElementById('dash-filter-recurso');
+            var currentRec = recSelect.value;
+            recSelect.innerHTML = '<option value="TODOS">Todos os Recursos</option>';
+            [...recursosSet].sort().forEach(r => {
+                var opt = document.createElement('option');
+                opt.value = r;
+                opt.innerText = r;
+                recSelect.appendChild(opt);
+            });
+            recSelect.value = currentRec || 'TODOS';
+
+            var pdvSelect = document.getElementById('dash-filter-pdv');
+            var currentPdv = pdvSelect.value;
+            pdvSelect.innerHTML = '<option value="TODOS">Todos os PDVs</option>';
+            [...pdvSet].sort().forEach(p => {
+                var opt = document.createElement('option');
+                opt.value = p;
+                opt.innerText = "PDV " + p;
+                pdvSelect.appendChild(opt);
+            });
+            pdvSelect.value = currentPdv || 'TODOS';
+
+            var cliSelect = document.getElementById('dash-filter-cliente');
+            var currentCli = cliSelect.value;
+            cliSelect.innerHTML = '<option value="TODOS">Todos os Clientes</option>';
+            [...clienteSet].sort().forEach(cl => {
+                var opt = document.createElement('option');
+                opt.value = cl;
+                opt.innerText = cl;
+                cliSelect.appendChild(opt);
+            });
+            cliSelect.value = currentCli || 'TODOS';
+        }
+
+        function renderDashboardData(payload) {
+            if (!payload) return;
+            window.lastPayload = payload;
+
+            popularFiltrosDinamicos(payload);
+
+            var filtroRecurso = document.getElementById('dash-filter-recurso').value;
+            var filtroPdv = document.getElementById('dash-filter-pdv').value;
+            var filtroCliente = document.getElementById('dash-filter-cliente').value;
+            var filtroStatus = document.getElementById('dash-filter-status').value;
+
+            var totalOfs = 0;
+            var concluidas = 0;
+            var pausadas = 0;
+            var totalMinutos = 0;
+            var statusContador = { "Na Fila": 0, "Em Processo": 0, "Pausado": 0, "Concluído": 0, "Conflito": 0 };
+
+            payload.machines.forEach(m => {
+                if (filtroRecurso !== 'TODOS' && m.name !== filtroRecurso) return;
+
+                m.cards.forEach(c => {
+                    var statusText = c.status || "Na Fila";
+
+                    if (filtroPdv !== 'TODOS' && c.pdv !== filtroPdv) return;
+                    if (filtroCliente !== 'TODOS' && c.cliente !== filtroCliente) return;
+                    if (filtroStatus !== 'TODOS' && statusText !== filtroStatus) return;
+
+                    totalOfs++;
+                    var tempo = parseInt(c.tempo) || 60;
+                    totalMinutos += tempo;
+
+                    if (statusText === "Concluído") { concluidas++; statusContador["Concluído"]++; }
+                    else if (statusText === "Em Processo") { statusContador["Em Processo"]++; }
+                    else if (statusText === "Pausado") { pausadas++; statusContador["Pausado"]++; }
+                    else if (statusText === "Conflito") { statusContador["Conflito"]++; }
+                    else { statusContador["Na Fila"]++; }
+                });
+            });
+
+            document.getElementById('kpi-ofs').innerText = totalOfs;
+            document.getElementById('kpi-conc').innerText = concluidas;
+            document.getElementById('kpi-pausadas').innerText = pausadas;
+            document.getElementById('kpi-horas').innerText = (totalMinutos / 60).toFixed(1) + "h";
+
+            var detailsContainer = document.getElementById('status-details-list');
+            detailsContainer.innerHTML = \`
+                <div class="status-row"><span>📌 Ordens Na Fila:</span> <b>\${statusContador["Na Fila"]}</b></div>
+                <div class="status-row"><span>▶ Ordens Em Processo:</span> <b>\${statusContador["Em Processo"]}</b></div>
+                <div class="status-row"><span>⏸ Ordens Pausadas:</span> <b style="color:#ffa726;">\${statusContador["Pausado"]}</b></div>
+                <div class="status-row"><span>✅ Ordens Concluídas:</span> <b style="color:#a5d6a7;">\${statusContador["Concluído"]}</b></div>
+                <div class="status-row"><span>⚠️ Ordens com Conflito:</span> <b style="color:#ef5350;">\${statusContador["Conflito"]}</b></div>
+            \`;
+
+            if (dashPieChartObj) dashPieChartObj.destroy();
+            var ctxPie = document.getElementById('dashPieChart').getContext('2d');
+            dashPieChartObj = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Na Fila', 'Em Processo', 'Pausado', 'Concluído', 'Conflito'],
+                    datasets: [{
+                        data: [
+                            statusContador["Na Fila"],
+                            statusContador["Em Processo"],
+                            statusContador["Pausado"],
+                            statusContador["Concluído"],
+                            statusContador["Conflito"]
+                        ],
+                        backgroundColor: ['#fbc02d', '#1976d2', '#ffa726', '#388e3c', '#d32f2f']
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#ccc' } } } }
+            });
+        }
+
+        function exportarDashboardExcel() {
+            if (!window.lastPayload) { alert("Nenhum dado carregado para exportar."); return; }
+
+            var filtroRecurso = document.getElementById('dash-filter-recurso').value;
+            var filtroPdv = document.getElementById('dash-filter-pdv').value;
+            var filtroCliente = document.getElementById('dash-filter-cliente').value;
+            var filtroStatus = document.getElementById('dash-filter-status').value;
+
+            var excelRows = [];
+            excelRows.push({
+                "Recurso / Máquina": "Recurso / Máquina",
+                "OF": "OF",
+                "Ano": "Ano",
+                "Produto": "Produto",
+                "Descrição": "Descrição",
+                "Seq. Fase": "Seq. Fase",
+                "Tempo (min)": "Tempo (min)",
+                "Cliente": "Cliente",
+                "PDV": "PDV",
+                "Status": "Status"
+            });
+
+            window.lastPayload.machines.forEach(m => {
+                if (filtroRecurso !== 'TODOS' && m.name !== filtroRecurso) return;
+
+                m.cards.forEach(c => {
+                    var statusText = c.status || "Na Fila";
+                    if (filtroPdv !== 'TODOS' && c.pdv !== filtroPdv) return;
+                    if (filtroCliente !== 'TODOS' && c.cliente !== filtroCliente) return;
+                    if (filtroStatus !== 'TODOS' && statusText !== filtroStatus) return;
+
+                    excelRows.push({
+                        "Recurso / Máquina": m.name,
+                        "OF": c.of,
+                        "Ano": c.ano,
+                        "Produto": c.prod,
+                        "Descrição": c.desc,
+                        "Seq. Fase": c.seqFase,
+                        "Tempo (min)": c.tempo,
+                        "Cliente": c.cliente,
+                        "PDV": c.pdv,
+                        "Status": statusText
+                    });
+                });
+            });
+
+            var ws = XLSX.utils.json_to_sheet(excelRows, {skipHeader: true});
+            var wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Dashboard Executivo");
+            XLSX.writeFile(wb, "Dashboard_Gerencial_PCP.xlsx");
+        }
+
+        var channel = new BroadcastChannel('pcp_data_channel');
+        channel.onmessage = function(e) { renderDashboardData(e.data); };
+
+        var initialState = localStorage.getItem('pcp_board_state');
+        if (initialState) { renderDashboardData(JSON.parse(initialState)); }
+    <\/script>
+</body>
+</html>`;
+
+            dashWindow.document.open();
+            dashWindow.document.write(dashHTML);
+            dashWindow.document.close();
+        }
+
+        function openMaintenanceModal() {
+            if (currentUserRole !== 'PCP') { alert("Acesso restrito ao PCP."); return; }
+            var container = document.getElementById('maintenance-items-container');
+            container.innerHTML = "";
+
+            document.querySelectorAll('.machine-row').forEach(row => {
+                var rId = row.id;
+                var rName = row.querySelector('.machine-header h4').innerText;
+                var dataInativo = fabConfig.recursosInativos[rId] || { ativo: false, inicio: '', fim: '' };
+
+                var groupDiv = document.createElement('div');
+                groupDiv.style.background = '#33363b';
+                groupDiv.style.padding = '10px';
+                groupDiv.style.borderRadius = '6px';
+                groupDiv.style.border = '1px solid #444';
+
+                groupDiv.innerHTML = `
+                    <label class="checkbox-label" style="font-size:12px; margin-bottom:6px;">
+                        <input type="checkbox" class="chk-recurso-inativo-toggle" data-roid="${rId}" ${dataInativo.ativo ? 'checked' : ''}> 🛠️ ${rName}
+                    </label>
+                    <div style="display:flex; gap:8px; margin-top:4px;">
+                        <div style="flex:1;"><label style="font-size:10px; color:#aaa;">Início Indisponibilidade:</label><input type="datetime-local" class="inativo-inicio" data-roid="${rId}" value="${dataInativo.inicio || ''}" style="width:100%; padding:5px; background:#2b2d31; color:#fff; border:1px solid #555; border-radius:4px; font-size:11px;"></div>
+                        <div style="flex:1;"><label style="font-size:10px; color:#aaa;">Fim Indisponibilidade:</label><input type="datetime-local" class="inativo-fim" data-roid="${rId}" value="${dataInativo.fim || ''}" style="width:100%; padding:5px; background:#2b2d31; color:#fff; border:1px solid #555; border-radius:4px; font-size:11px;"></div>
+                    </div>
+                `;
+                container.appendChild(groupDiv);
+            });
+
+            document.getElementById('modal-maintenance').classList.add('active');
+        }
+        function closeMaintenanceModal() { document.getElementById('modal-maintenance').classList.remove('active'); }
+
+        function saveMaintenanceConfig() {
+            var toggles = document.querySelectorAll('.chk-recurso-inativo-toggle');
+            fabConfig.recursosInativos = {};
+
+            toggles.forEach(chk => {
+                var rId = chk.dataset.roid;
+                if (chk.checked) {
+                    var rowContainer = chk.closest('div');
+                    var iniInput = rowContainer.querySelector('.inativo-inicio').value;
+                    var fimInput = rowContainer.querySelector('.inativo-fim').value;
+                    fabConfig.recursosInativos[rId] = { ativo: true, inicio: iniInput, fim: fimInput };
+                }
+            });
+
+            document.querySelectorAll('.machine-row').forEach(row => {
+                if (fabConfig.recursosInativos[row.id] && fabConfig.recursosInativos[row.id].ativo) {
+                    row.classList.add('inativo');
+                } else {
+                    row.classList.remove('inativo');
+                }
+            });
+
+            closeMaintenanceModal();
+            document.getElementById('log-output').innerHTML = "🛠️ <b>Manutenção/Férias atualizadas:</b> Carga recalculada com períodos de indisponibilidade.";
+            document.querySelectorAll('.card-row-list').forEach(list => updateRowStatusAndSchedule(list));
+            registrarAuditoria("CONFIG_MAINTENANCE", "GERAL", "Recursos em manutenção/férias atualizados.");
+        }
+
+        function filtrarPorOperadorPill(operadorNome, pillElement) {
+            document.querySelectorAll('.op-pill').forEach(p => p.classList.remove('active'));
+            pillElement.classList.add('active');
+            currentSelectedOperador = operadorNome;
+            aplicarFiltrosCombinados();
+        }
+
+        function aplicarFiltrosCombinados() {
+            var chkRecursos = document.querySelectorAll('.chk-recurso');
+            var selectedRecursos = [];
+            chkRecursos.forEach(chk => { if (chk.checked) selectedRecursos.push(chk.value); });
+
+            var rows = document.querySelectorAll('.machine-row');
+            rows.forEach(row => {
+                if (row.id === 'posto-externa') return;
+                
+                var opRow = (row.dataset.operador || "").toLowerCase();
+                var idRow = row.id;
+
+                var matchOp = (currentSelectedOperador === 'TODOS') || (opRow === currentSelectedOperador.toLowerCase());
+                var matchRec = (selectedRecursos.length === 0) || selectedRecursos.includes(idRow);
+
+                if (matchOp && matchRec) {
+                    row.style.display = 'flex';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            document.getElementById('log-output').innerHTML = "🎛️ <b>Filtro aplicado:</b> Operador [<b>" + currentSelectedOperador + "</b>].";
+        }
+
+        function limparFiltros() {
+            document.querySelectorAll('.op-pill').forEach(p => p.classList.remove('active'));
+            document.querySelector('.op-pill').classList.add('active');
+            currentSelectedOperador = 'TODOS';
+
+            document.querySelectorAll('.chk-recurso').forEach(chk => chk.checked = false);
+            var rows = document.querySelectorAll('.machine-row');
+            rows.forEach(row => {
+                if (row.id === 'posto-externa') return;
+                row.style.display = 'flex';
+            });
+            document.getElementById('log-output').innerHTML = "🎛️ <b>Filtros limpos:</b> Exibindo todos os operadores e recursos.";
+        }
+
+        function notifyChartUpdate() {
+            var dataPayload = gatherBoardData();
+            localStorage.setItem('pcp_board_state', JSON.stringify(dataPayload));
+            pcpBroadcastChannel.postMessage(dataPayload);
+
+            if (currentUserRole === 'PCP') {
+                fetch('state.json', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dataPayload)
+                }).catch(err => console.log("Erro ao sincronizar estado com o servidor:", err));
+            }
+        }
+
+        function verificarAtualizacoesServidor() {
+            if (currentUserRole === 'Industrial') {
+                fetch('state.json?t=' + new Date().getTime())
+                    .then(response => {
+                        if (!response.ok) return null;
+                        return response.json();
+                    })
+                    .then(payload => {
+                        if (payload) {
+                            aplicarEstadoRemoto(payload);
+                        }
+                    })
+                    .catch(err => console.log("Aguardando conexão com o servidor..."));
+            }
+        }
+
+        function aplicarEstadoRemoto(payload) {
+            if (!payload || !payload.machines) return;
+            
+            payload.machines.forEach(mData => {
+                var machineRow = [...document.querySelectorAll('.machine-row')].find(row => {
+                    var h4 = row.querySelector('.machine-header h4');
+                    return h4 && h4.innerText === mData.name;
+                });
+
+                if (machineRow) {
+                    var cardList = machineRow.querySelector('.card-row-list');
+                    mData.cards.forEach(cData => {
+                        var existingCard = [...cardList.querySelectorAll('.card')].find(card => 
+                            card.dataset.ofNum === cData.of && card.dataset.anoOF === cData.ano && card.dataset.seqFase == cData.seqFase
+                        );
+
+                        if (existingCard) {
+                            if (cData.status === 'Concluído' && !existingCard.classList.contains('status-concluido')) {
+                                existingCard.className = 'card status-concluido';
+                                var ind = existingCard.querySelector('.card-status-indicator');
+                                if (ind) ind.innerText = "Concluído";
+                            } else if (cData.status === 'Em Processo' && !existingCard.classList.contains('status-processo')) {
+                                existingCard.className = 'card status-processo';
+                                var ind = existingCard.querySelector('.card-status-indicator');
+                                if (ind) ind.innerText = "Em Processo";
+                            } else if (cData.status === 'Pausado' && !existingCard.classList.contains('status-pausado')) {
+                                existingCard.className = 'card status-pausado';
+                                var ind = existingCard.querySelector('.card-status-indicator');
+                                if (ind) ind.innerText = "Pausado";
+                            }
+                            
+                            var badgeDatas = existingCard.querySelector('.badge-datas');
+                            if (badgeDatas) {
+                                badgeDatas.innerText = "📅 " + cData.dtInicio + " ➔ " + cData.dtFim;
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        setInterval(verificarAtualizacoesServidor, 3000);
+
+        function openLiveChartTab() {
+            notifyChartUpdate();
+            var chartWindow = window.open('', 'Grafico_PCP_Live');
+
+            var chartHTML = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>📊 Gráficos de Produção e Operação Externa (PCP)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 20px; background: #121212; color: #e0e0e0; }
+        .header { background: #1F497D; color: white; padding: 15px 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .header h2 { margin: 0; font-size: 18px; }
+        .badge-live { background: #2e7d32; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .chart-card-box { background: #1e1e1e; border-radius: 8px; padding: 16px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); border-top: 4px solid #f57f17; }
+        .chart-card-box h3 { margin-top: 0; color: #90caf9; font-size: 15px; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>📊 Painel Gráfico de Carga de Máquinas e Operações Externas</h2>
+        <span class="badge-live">● TEMPO REAL</span>
+    </div>
+
+    <div class="chart-card-box">
+        <h3>⏱️ Horas de Produção por Posto de Trabalho</h3>
+        <canvas id="barChart" height="90"><\/canvas>
+    </div>
+
+    <div class="chart-card-box" style="border-top-color: #e65100;">
+        <h3>🌍 Operação Externa por Tipo de Operação (Dias - 8h/dia)</h3>
+        <canvas id="externalBarChart" height="90"><\/canvas>
+    </div>
+
+    <script>
+        var barChartObj = null;
+        var externalBarChartObj = null;
+
+        function renderCharts(payload) {
+            if (!payload || !payload.machines) return;
+
+            var labelsMaq = [
+                '13 - Torno CNC Travis',
+                '203 - Fresa CNC Starrag',
+                '202 - Fresa CNC Starrag 1',
+                '201/200 - Fresa Conv. Fluri/Atlasmaq',
+                '100 - Torno Horizontal Quasar',
+                '101 - Torno Horizontal Clever 2M',
+                '102 - Torno Horizontal Veker',
+                '103 - Torno Horizontal Clever 4M',
+                '104 - Torno Horizontal Nardini',
+                '27 - Bancada de Ajuste',
+                '28 - Logística',
+                '26 - Inspeção de Produto Final',
+                'Ultrasom'
+            ];
+
+            var totalsMin = {
+                '13 - Torno CNC Travis': 0,
+                '203 - Fresa CNC Starrag': 0,
+                '202 - Fresa CNC Starrag 1': 0,
+                '201/200 - Fresa Conv. Fluri/Atlasmaq': 0,
+                '100 - Torno Horizontal Quasar': 0,
+                '101 - Torno Horizontal Clever 2M': 0,
+                '102 - Torno Horizontal Veker': 0,
+                '103 - Torno Horizontal Clever 4M': 0,
+                '104 - Torno Horizontal Nardini': 0,
+                '27 - Bancada de Ajuste': 0,
+                '28 - Logística': 0,
+                '26 - Inspeção de Produto Final': 0,
+                'Ultrasom': 0
+            };
+
+            var extMap = {};
+
+            payload.machines.forEach(m => {
+                m.cards.forEach(c => {
+                    var maqStr = String(c.maquinaStr || '');
+                    
+                    if (maqStr.includes('13 -')) totalsMin['13 - Torno CNC Travis'] += c.tempo;
+                    else if (maqStr.includes('203 -')) totalsMin['203 - Fresa CNC Starrag'] += c.tempo;
+                    else if (maqStr.includes('202 -')) totalsMin['202 - Fresa CNC Starrag 1'] += c.tempo;
+                    else if (maqStr.includes('201 -') || maqStr.includes('200 -')) totalsMin['201/200 - Fresa Conv. Fluri/Atlasmaq'] += c.tempo;
+                    else if (maqStr.includes('100 -')) totalsMin['100 - Torno Horizontal Quasar'] += c.tempo;
+                    else if (maqStr.includes('101 -')) totalsMin['101 - Torno Horizontal Clever 2M'] += c.tempo;
+                    else if (maqStr.includes('102 -')) totalsMin['102 - Torno Horizontal Veker'] += c.tempo;
+                    else if (maqStr.includes('103 -')) totalsMin['103 - Torno Horizontal Clever 4M'] += c.tempo;
+                    else if (maqStr.includes('104 -')) totalsMin['104 - Torno Horizontal Nardini'] += c.tempo;
+                    else if (maqStr.includes('27 - BANCADA') || maqStr.includes('27 - BANCADA DE AJUSTE')) totalsMin['27 - Bancada de Ajuste'] += c.tempo;
+                    else if (maqStr.includes('28 - LOGISTICA')) totalsMin['28 - Logística'] += c.tempo;
+                    else if (maqStr.includes('26 - INSPECAO')) totalsMin['26 - Inspeção de Produto Final'] += c.tempo;
+                    else if (maqStr.includes('Ultrasom')) totalsMin['Ultrasom'] += c.tempo;
+
+                    if (maqStr.includes('207 -') || maqStr.includes('EXTERNA')) {
+                        var opKey = c.operacaoTexto ? c.operacaoTexto.trim() : (c.desc || 'Geral');
+                        if (!extMap[opKey]) extMap[opKey] = 0;
+                        extMap[opKey] += c.tempo;
+                    }
+                });
+            });
+
+            var dataHoras = labelsMaq.map(lbl => (totalsMin[lbl] / 60).toFixed(1));
+
+            if (barChartObj) barChartObj.destroy();
+            var ctxBar = document.getElementById('barChart').getContext('2d');
+            barChartObj = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: labelsMaq,
+                    datasets: [{
+                        label: 'Carga Real por Posto / Recurso (Horas)',
+                        data: dataHoras,
+                        backgroundColor: '#42a5f5',
+                        borderRadius: 4
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    plugins: { legend: { display: false } }, 
+                    scales: { 
+                        x: { ticks: { color: '#ccc' }, grid: { color: '#222' } },
+                        y: { beginAtZero: true, title: { display: true, text: 'Horas', color: '#ccc' }, ticks: { color: '#ccc' }, grid: { color: '#333' } } 
+                    } 
+                }
+            });
+
+            var extLabels = Object.keys(extMap);
+            var extDataDays = extLabels.map(lbl => (extMap[lbl] / 480).toFixed(1));
+
+            if (externalBarChartObj) externalBarChartObj.destroy();
+            var ctxExt = document.getElementById('externalBarChart').getContext('2d');
+            externalBarChartObj = new Chart(ctxExt, {
+                type: 'bar',
+                data: {
+                    labels: extLabels.length ? extLabels : ['Nenhuma Operação Externa Cadastrada'],
+                    datasets: [{
+                        label: 'Carga de Operação Externa (Dias)',
+                        data: extDataDays.length ? extDataDays : [0],
+                        backgroundColor: '#ffa726',
+                        borderRadius: 4
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    plugins: { legend: { display: false } }, 
+                    scales: { 
+                        x: { ticks: { color: '#ccc' }, grid: { color: '#222' } },
+                        y: { beginAtZero: true, title: { display: true, text: 'Dias (8h/dia)', color: '#ccc' }, ticks: { color: '#ccc' }, grid: { color: '#333' } } 
+                    } 
+                }
+            });
+        }
+
+        var channel = new BroadcastChannel('pcp_data_channel');
+        channel.onmessage = function(e) { renderCharts(e.data); };
+
+        var initialState = localStorage.getItem('pcp_board_state');
+        if (initialState) { renderCharts(JSON.parse(initialState)); }
+    <\/script>
+</body>
+</html>`;
+
+            chartWindow.document.open();
+            chartWindow.document.write(chartHTML);
+            chartWindow.document.close();
+        }
+
+        function openLiveFlowTab() {
+            notifyChartUpdate();
+            var flowWindow = window.open('', 'Fluxo_PCP_Live');
+
+            var flowHTML = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>📈 Fluxo Operacional por Fase e Prazos (PCP)</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 20px; background: #121212; color: #e0e0e0; }
+        .header { background: #0d47a1; color: white; padding: 15px 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .header h2 { margin: 0; font-size: 18px; }
+        .badge-live { background: #2e7d32; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+        .filter-container-box { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .filter-box { background: #1e1e1e; padding: 12px 16px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.4); flex: 1; min-width: 280px; display: flex; align-items: center; gap: 10px; border: 1px solid #333; }
+        .filter-box label { font-size: 12px; font-weight: bold; color: #90caf9; white-space: nowrap; }
+        .filter-box select { padding: 6px 12px; border-radius: 4px; border: 1px solid #444; background: #2d2d2d; color: #fff; font-size: 12px; width: 100%; }
+        .product-group-card { background: #1e1e1e; border-radius: 8px; padding: 16px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); border-top: 4px solid #1976d2; border: 1px solid #333; }
+        .product-title { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 15px; flex-wrap: wrap; gap: 8px; }
+        .product-title h3 { margin: 0; color: #90caf9; font-size: 15px; }
+        .product-title span { font-size: 12px; color: #ccc; background: #2d2d2d; padding: 4px 8px; border-radius: 4px; font-weight: 500; }
+        .flow-container { display: flex; gap: 12px; align-items: center; overflow-x: auto; padding-bottom: 8px; }
+        .flow-step { background: #252525; border: 1px solid #444; border-left: 6px solid #1976d2; border-radius: 6px; padding: 10px 14px; min-width: 220px; flex-shrink: 0; position: relative; }
+        .flow-step.status-proc { border-left-color: #1976d2; background: #1b2a4a; }
+        .flow-step.status-pausado { border-left-color: #ffa726; background: #4a381b; }
+        .flow-step.status-fila { border-left-color: #fbc02d; background: #332b10; }
+        .flow-step.status-conc { border-left-color: #388e3c; background: #153319; }
+        .step-num { font-size: 10px; font-weight: bold; color: #fff; background: #0d47a1; padding: 2px 8px; border-radius: 10px; display: inline-block; margin-bottom: 4px; }
+        .step-machine { font-weight: bold; color: #90caf9; font-size: 12px; margin-bottom: 4px; }
+        .step-desc { font-size: 11px; color: #ddd; margin-bottom: 6px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .step-dates { font-size: 10px; color: #a5d6a7; background: #1e1e1e; padding: 4px 6px; border-radius: 4px; border: 1px solid #333; font-family: monospace; font-weight: bold; }
+        .flow-arrow { font-size: 18px; color: #90caf9; font-weight: bold; flex-shrink: 0; }
+        .final-deadline-btn { background: #2e7d32; color: white; border: none; padding: 12px 16px; border-radius: 6px; font-weight: bold; font-size: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); flex-shrink: 0; min-width: 250px; }
+        .final-deadline-btn span.title { font-size: 10px; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px; }
+        .final-deadline-btn span.date { font-size: 13px; font-family: monospace; font-weight: bold; background: rgba(0,0,0,0.25); padding: 3px 8px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>📈 Fluxo Operacional por Fase e Prazos Finais</h2>
+        <span class="badge-live">● TEMPO REAL</span>
+    </div>
+
+    <div class="filter-container-box">
+        <div class="filter-box">
+            <label>🔍 Filtrar por Produto / OF:</label>
+            <select id="select-filter" onchange="applyFilter()">
+                <option value="ALL">Mostrar Todos os Produtos</option>
+            </select>
+        </div>
+        <div class="filter-box">
+            <label>📦 Filtrar por PDV:</label>
+            <select id="select-pdv-filter" onchange="applyFilter()">
+                <option value="ALL">Mostrar Todos os PDVs</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="products-container"></div>
+
+    <script>
+        var currentPayload = null;
+
+        function renderFlow(payload) {
+            currentPayload = payload;
+            if (!payload || !payload.machines) return;
+
+            var productMap = {};
+            var pdvSet = new Set();
+
+            payload.machines.forEach(m => {
+                m.cards.forEach((c) => {
+                    var key = (c.prod !== 'N/A' ? c.prod : ('OF ' + c.of)) + " (OF " + c.ano + "/" + c.of + ")";
+                    if (c.pdv && c.pdv !== 'N/A' && c.pdv !== '0') pdvSet.add(c.pdv);
+
+                    if (!productMap[key]) {
+                        productMap[key] = {
+                            key: key,
+                            of: c.of,
+                            ano: c.ano,
+                            cliente: c.cliente,
+                            pdv: c.pdv || 'N/A',
+                            qtd: c.qtd || 1,
+                            operations: []
+                        };
+                    }
+                    productMap[key].operations.push({
+                        machine: m.name,
+                        desc: c.desc,
+                        operacaoTexto: c.operacaoTexto || '',
+                        tempo: c.tempo,
+                        seqFase: c.seqFase || 0,
+                        dtInicio: c.dtInicio,
+                        dtFim: c.dtFim,
+                        dtFimISO: c.dtFimISO || '',
+                        status: c.status
+                    });
+                    if (c.dataEntregaPdv && !productMap[key].dataEntregaPdv) {
+                        productMap[key].dataEntregaPdv = c.dataEntregaPdv;
+                    }
+                });
+            });
+
+            Object.keys(productMap).forEach(pKey => {
+                productMap[pKey].operations.sort((a, b) => (a.seqFase || 0) - (b.seqFase || 0));
+            });
+
+            var selectProd = document.getElementById('select-filter');
+            var selectedProdVal = selectProd.value;
+            selectProd.innerHTML = '<option value="ALL">Mostrar Todos os Produtos (' + Object.keys(productMap).length + ' Disponíveis)</option>';
+            Object.keys(productMap).sort().forEach(pKey => {
+                var opt = document.createElement('option');
+                opt.value = pKey;
+                opt.innerText = pKey;
+                selectProd.appendChild(opt);
+            });
+            selectProd.value = selectedProdVal || "ALL";
+
+            var selectPdv = document.getElementById('select-pdv-filter');
+            var selectedPdvVal = selectPdv.value;
+            selectPdv.innerHTML = '<option value="ALL">Mostrar Todos os PDVs (' + pdvSet.size + ' PDVs Disponíveis)</option>';
+            [...pdvSet].sort().forEach(pdvVal => {
+                var opt = document.createElement('option');
+                opt.value = pdvVal;
+                opt.innerText = "PDV " + pdvVal;
+                selectPdv.appendChild(opt);
+            });
+            selectPdv.value = selectedPdvVal || "ALL";
+
+            renderHTMLCards(productMap, selectProd.value, selectPdv.value);
+        }
+
+        function renderHTMLCards(productMap, filterProdKey, filterPdvVal) {
+            var container = document.getElementById('products-container');
+            container.innerHTML = "";
+
+            var keysToRender = Object.keys(productMap).sort();
+
+            if (filterProdKey !== "ALL") {
+                keysToRender = keysToRender.filter(k => k === filterProdKey);
+            }
+
+            if (filterPdvVal !== "ALL") {
+                keysToRender = keysToRender.filter(k => productMap[k].pdv === filterPdvVal);
+            }
+
+            if (keysToRender.length === 0) {
+                container.innerHTML = "<div style='background:#1e1e1e; padding:20px; border-radius:8px; text-align:center; color:#aaa;'>Nenhum produto encontrado para o filtro selecionado.</div>";
+                return;
+            }
+
+            keysToRender.forEach(pKey => {
+                var item = productMap[pKey];
+                var cardBox = document.createElement('div');
+                cardBox.className = 'product-group-card';
+
+                var flowHTML = "";
+                var lastEndTime = "A definir";
+
+                item.operations.forEach((op, opIdx) => {
+                    var statusClass = op.status === 'Em Processo' ? 'status-proc' : (op.status === 'Pausado' ? 'status-pausado' : (op.status === 'Na Fila' ? 'status-fila' : 'status-conc'));
+                    var faseLabel = op.seqFase ? ("Fase " + op.seqFase) : ("Etapa " + (opIdx + 1));
+                    var displayMachine = op.machine;
+                    if (op.operacaoTexto && op.machine.includes('27 -')) {
+                        displayMachine = "Op: " + op.operacaoTexto;
+                    }
+
+                    flowHTML += \`
+                        <div class="flow-step \${statusClass}">
+                            <span class="step-num">\${faseLabel}</span>
+                            <div class="step-machine" title="\${displayMachine}">\${displayMachine}</div>
+                            <div class="step-desc" title="\${op.desc}">\${op.desc}</div>
+                            <div class="step-dates">🕒 \${op.dtInicio} ➔ \${op.dtFim}</div>
+                        </div>
+                    \`;
+                    flowHTML += '<div class="flow-arrow">➔</div>';
+                    lastEndTime = op.dtFim || "A definir";
+                });
+
+                var isOverdue = false;
+                var lastOp = item.operations[item.operations.length - 1];
+                var finalProductDateStr = lastEndTime;
+                var pdvDateStr = "Não informada";
+                
+                if (item.dataEntregaPdv) {
+                    var entregaDate = new Date(item.dataEntregaPdv);
+                    pdvDateStr = !isNaN(entregaDate.getTime()) ? entregaDate.toLocaleDateString('pt-BR') : item.dataEntregaPdv;
+                    
+                    if (lastOp && lastOp.dtFimISO) {
+                        var productEndDate = new Date(lastOp.dtFimISO);
+                        var targetReadyDate = new Date(entregaDate.getTime());
+                        targetReadyDate.setDate(targetReadyDate.getDate() - 2);
+
+                        if (!isNaN(productEndDate.getTime()) && productEndDate > targetReadyDate) {
+                            isOverdue = true;
+                        }
+                    }
+                }
+
+                var deadlineBg = isOverdue ? '#fbc02d' : '#2e7d32';
+                var deadlineColor = isOverdue ? '#121212' : 'white';
+
+                flowHTML += \`
+                    <div class="final-deadline-btn" style="background: \${deadlineBg}; color: \${deadlineColor}; min-width: 250px;">
+                        <span class="title" style="color: \${deadlineColor}; font-weight: bold;">🏁 PRAZO FINAL \${isOverdue ? '⚠️ (ATRASADO - META 2 DIAS ANTES)' : '✔ (NO PRAZO)'}</span>
+                        <span style="font-size: 11px; margin-top: 2px;">Última Fase: <b>\${finalProductDateStr}</b></span>
+                        <span class="date" style="background: rgba(0,0,0,0.25); color: \${deadlineColor}; margin-top: 2px;">📅 Entrega PDV: \${pdvDateStr}</span>
+                    </div>
+                \`;
+
+                cardBox.innerHTML = \`
+                    <div class="product-title">
+                        <h3>📦 \${item.key}</h3>
+                        <span>Qtd: <b>\${item.qtd} pç(s)</b> | PDV: <b>\${item.pdv}</b> | Cliente: <b>\${item.cliente || 'Não informado'}</b></span>
+                    </div>
+                    <div class="flow-container">
+                        \${flowHTML}
+                    </div>
+                \`;
+                container.appendChild(cardBox);
+            });
+        }
+
+        function applyFilter() {
+            if (currentPayload) renderFlow(currentPayload);
+        }
+
+        var channel = new BroadcastChannel('pcp_data_channel');
+        channel.onmessage = function(e) { renderFlow(e.data); };
+
+        var initialState = localStorage.getItem('pcp_board_state');
+        if (initialState) { renderFlow(JSON.parse(initialState)); }
+    <\/script>
+</body>
+</html>`;
+
+            flowWindow.document.open();
+            flowWindow.document.write(flowHTML);
+            flowWindow.document.close();
+        }
+
+        function gatherBoardData() {
+            var payload = { machines: [] };
+            document.querySelectorAll('.machine-row').forEach(row => {
+                var name = row.querySelector('.machine-header h4').innerText;
+                var cardsData = [];
+
+                row.querySelectorAll('.card').forEach(card => {
+                    var statusText = "Na Fila";
+                    if (card.classList.contains('status-processo')) statusText = "Em Processo";
+                    if (card.classList.contains('status-pausado')) statusText = "Pausado";
+                    if (card.classList.contains('status-concluido')) statusText = "Concluído";
+                    if (card.classList.contains('status-conflito')) statusText = "Conflito";
+
+                    var badgeDates = card.querySelector('.badge-datas');
+                    var dateText = badgeDates ? badgeDates.innerText.replace('📅 ', '') : 'A definir';
+                    var datesParts = dateText.split(' ➔ ');
+
+                    cardsData.push({
+                        of: card.dataset.ofNum || "N/A",
+                        ano: card.dataset.anoOF || "2026",
+                        prod: card.dataset.prodCode || "N/A",
+                        qtd: parseInt(card.dataset.qtd) || 1,
+                        desc: card.dataset.descOp || "",
+                        operacaoTexto: card.dataset.operacaoTexto || "",
+                        maquinaStr: card.dataset.maquinaStr || "",
+                        seqFase: parseInt(card.dataset.seqFase) || 0,
+                        tempo: parseInt(card.dataset.tempoMin) || 60,
+                        cliente: card.dataset.cliente || "",
+                        pdv: card.dataset.pdv || "N/A",
+                        dataEntregaPdv: card.dataset.dataEntregaPdv || "", 
+                        status: statusText,
+                        dtInicio: datesParts[0] || 'A definir',
+                        dtFim: datesParts[1] || 'A definir',
+                        dtFimISO: card.dataset.dtFim || '',
+                        inicioReal: card.dataset.inicioReal || 'Não iniciado',
+                        fimReal: card.dataset.fimReal || 'Não finalizado',
+                        tempoPausaMin: parseInt(card.dataset.tempoPausaMin) || 0
+                    });
+                });
+                payload.machines.push({ name: name, cards: cardsData });
+            });
+            return payload;
+        }
+
+        function exportarRelatorioHistorico() {
+            var allData = gatherBoardData();
+            var excelRows = [];
+
+            excelRows.push({
+                "Máquina / Posto": "Posto de Trabalho",
+                "OF": "OF",
+                "Ano": "Ano",
+                "Produto": "Código Produto",
+                "Descrição": "Descrição",
+                "Fase": "Seq. Fase",
+                "Tempo Previsto (min)": "Tempo (min)",
+                "Tempo Pausa (min)": "Tempo Pausa",
+                "Status": "Status Atual",
+                "Início Calculado": "Início Calc.",
+                "Fim Calculado": "Fim Calc.",
+                "Início Real (Execução)": "Início Real",
+                "Fim Real (Execução)": "Fim Real"
+            });
+
+            allData.machines.forEach(m => {
+                m.cards.forEach(c => {
+                    excelRows.push({
+                        "Máquina / Posto": m.name,
+                        "OF": c.of,
+                        "Ano": c.ano,
+                        "Produto": c.prod,
+                        "Descrição": c.desc,
+                        "Fase": c.seqFase,
+                        "Tempo Previsto (min)": c.tempo,
+                        "Tempo Pausa (min)": c.tempoPausaMin,
+                        "Status": c.status,
+                        "Início Calculado": c.dtInicio,
+                        "Fim Calculado": c.dtFim,
+                        "Início Real (Execução)": c.inicioReal,
+                        "Fim Real (Execução)": c.fimReal
+                    });
+                });
+            });
+
+            var ws = XLSX.utils.json_to_sheet(excelRows, {skipHeader: true});
+            var wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Histórico Real Produção");
+            XLSX.writeFile(wb, "Relatorio_Historico_Producao_Engecrol.xlsx");
+
+            registrarAuditoria("EXPORTAR_RELATORIO", "TODAS", "Relatório de histórico e tempos reais exportado para Excel com registros de pausas.");
+            document.getElementById('log-output').innerHTML = "📥 <b>RELATÓRIO EXPORTADO:</b> Planilha Excel gerada com sucesso com tempos reais e de pausas contemplados.";
+        }
+
+        async function handleAutoRefreshBtn() {
+            try {
+                if (cachedFileHandle) {
+                    const permission = await cachedFileHandle.queryPermission({ mode: 'read' });
+                    if (permission === 'granted') {
+                        const file = await cachedFileHandle.getFile();
+                        processExcelArrayBuffer(await file.arrayBuffer());
+                        return;
+                    }
+                }
+
+                if ('showOpenFilePicker' in window) {
+                    const [handle] = await window.showOpenFilePicker({
+                        types: [{ description: 'Planilha PCP Fábrica', accept: {'application/vnd.ms-excel.sheet.macroEnabled.12': ['.xlsm'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']} }]
+                    });
+                    cachedFileHandle = handle;
+                    const file = await cachedFileHandle.getFile();
+                    processExcelArrayBuffer(await file.arrayBuffer());
+                    document.getElementById('sync-status').innerText = "✔ VINCULADO AUTOMATICAMENTE";
+                    return;
+                }
+            } catch (e) {
+                console.log("File picker cancelado ou indisponível.", e);
+            }
+
+            document.getElementById('excel-file-hidden').click();
+        }
+
+        function readSelectedFile() {
+            var fileInput = document.getElementById('excel-file-hidden');
+            if (!fileInput.files.length) return;
+            var file = fileInput.files[0];
+            var reader = new FileReader();
+            reader.onload = function(e) { processExcelArrayBuffer(e.target.result); };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function parseExcelDate(val) {
+            if (!val) return null;
+            if (val instanceof Date) return val;
+            if (typeof val === 'number') {
+                var utc_days = Math.floor(val - 25569);
+                var utc_value = utc_days * 86400;
+                var date_info = new Date(utc_value * 1000);
+                var fractional_day = val - Math.floor(val) + 0.0000001;
+                var total_seconds = Math.floor(fractional_day * 86400);
+                var seconds = total_seconds % 60;
+                total_seconds -= seconds;
+                var hours = Math.floor(total_seconds / (60 * 60));
+                var minutes = Math.floor(total_seconds / 60) % 60;
+                return new Date(date_info.getFullYear(), date_info.getMonth(), date_info.getDate(), hours, minutes, seconds);
+            }
+            var parsed = new Date(val);
+            return isNaN(parsed.getTime()) ? null : parsed;
+        }
+
+        function processExcelArrayBuffer(buffer) {
+            var data = new Uint8Array(buffer);
+            var workbook = XLSX.read(data, {type: 'array', cellDates: true, cellFormulas: true});
+            
+            var targetSheetName = "Programação Usinagem";
+            var firstSheet = workbook.Sheets[targetSheetName];
+
+            if (!firstSheet) {
+                targetSheetName = workbook.SheetNames[0];
+                firstSheet = workbook.Sheets[targetSheetName];
+            }
+
+            var jsonData = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+
+            document.querySelectorAll('.card-row-list').forEach(list => list.innerHTML = '');
+
+            var headerIdx = -1;
+            for (var r = 0; r < jsonData.length; r++) {
+                if (jsonData[r] && jsonData[r].includes('OF')) { headerIdx = r; break; }
+            }
+
+            if (headerIdx === -1) { alert("Coluna 'OF' não encontrada na planilha."); return; }
+
+            var headers = jsonData[headerIdx];
+            var ofCol = headers.indexOf('OF');
+            var anoCol = headers.indexOf('ANO');
+            var prodCol = headers.indexOf('CÓDIGO PRODUTO');
+            var descCol = headers.indexOf('DESC + OPER');
+            var operacaoCol = headers.indexOf('OPERAÇÃO');
+            var maqCol = headers.indexOf('MAQUINA');
+            var tempoCol = headers.indexOf('TEMPO MIN');
+            var clienteCol = headers.indexOf('CLIENTE');
+            var pdvCol = headers.indexOf('PDV');
+            
+            var qtdCol = headers.indexOf('QUANTIDADE');
+            if (qtdCol === -1) qtdCol = headers.indexOf('QTD');
+            if (qtdCol === -1) qtdCol = headers.indexOf('QTDE');
+            if (qtdCol === -1) qtdCol = headers.indexOf('LOTE');
+            if (qtdCol === -1) qtdCol = headers.indexOf('QUANT.');
+
+            var pdvEntregaCol = headers.indexOf('DATA ENTREGA PDV');
+            if (pdvEntregaCol === -1) pdvEntregaCol = headers.indexOf('DATA_ENTREGA_PDV');
+            if (pdvEntregaCol === -1) pdvEntregaCol = headers.indexOf('ENTREGA PDV');
+            if (pdvEntregaCol === -1) pdvEntregaCol = headers.indexOf('DATA ENTREGA');
+            if (pdvEntregaCol === -1) pdvEntregaCol = headers.indexOf('ENTREGA');
+
+            var seqFaseCol = headers.indexOf('SEQ. FASE');
+            if (seqFaseCol === -1) seqFaseCol = headers.indexOf('SEQ FASE');
+
+            var total = 0;
+            var currentYear = new Date().getFullYear();
+
+            for (var i = headerIdx + 1; i < jsonData.length; i++) {
+                var row = jsonData[i];
+                if (!row || !row[ofCol]) continue;
+
+                var ofNum = row[ofCol];
+                var anoOF = (anoCol !== -1 && row[anoCol]) ? row[anoCol] : currentYear;
+                var prodCode = row[prodCol] || 'N/A';
+                var qtd = (qtdCol !== -1 && row[qtdCol]) ? parseInt(row[qtdCol]) || 1 : 1;
+                var descOp = row[descCol] || 'Operação';
+                var operacaoTexto = (operacaoCol !== -1 && row[operacaoCol]) ? String(row[operacaoCol]) : '';
+                var seqFase = (seqFaseCol !== -1 && row[seqFaseCol]) ? parseInt(row[seqFaseCol]) || 0 : 0;
+                var maqStr = String(row[maqCol] || '').trim();
+                var tempo = parseInt(row[tempoCol]) || 60;
+                var cliente = row[clienteCol] || 'Não informado';
+                var pdv = row[pdvCol] || 'N/A';
+
+                var rawInicio = row[2]; 
+                var customStartTime = parseExcelDate(rawInicio);
+
+                var cellAddress = XLSX.utils.encode_cell({r: i, c: prodCol});
+                var targetCell = firstSheet[cellAddress];
+                var itemLink = "";
+
+                if (targetCell) {
+                    if (targetCell.l && targetCell.l.Target) {
+                        itemLink = targetCell.l.Target;
+                    } else if (targetCell.f && targetCell.f.includes('HYPERLINK')) {
+                        var match = targetCell.f.match(/HYPERLINK\("([^"]+)"/i);
+                        if (match && match[1]) itemLink = match[1];
+                    }
+                }
+
+                if (!itemLink && prodCode !== 'N/A') {
+                    var prefixo = prodCode.split('.')[1] || 'DESENHOS';
+                    itemLink = `file://SRV-ENGE-DC03/Engenharia$/_ENGENHARIA/_DESENHOS/${prefixo}/${prodCode}`;
+                }
+
+                var targetId = 'posto-27';
+
+                if (maqStr.includes('13 -')) targetId = 'posto-13';
+                else if (maqStr.includes('203 -')) targetId = 'posto-203';
+                else if (maqStr.includes('202 -')) targetId = 'posto-202';
+                else if (maqStr.includes('201 -') || maqStr.includes('200 -')) targetId = 'posto-201-200';
+                else if (maqStr.includes('100 -')) targetId = 'posto-100';
+                else if (maqStr.includes('101 -')) targetId = 'posto-101';
+                else if (maqStr.includes('102 -')) targetId = 'posto-102';
+                else if (maqStr.includes('103 -')) targetId = 'posto-103';
+                else if (maqStr.includes('104 -')) targetId = 'posto-104';
+                else if (maqStr.includes('27 - BANCADA') || maqStr.includes('27 - BANCADA DE AJUSTE')) targetId = 'posto-27';
+                else if (maqStr.includes('28 - LOGISTICA') || maqStr.includes('LOGISTICA')) targetId = 'posto-logistica';
+                else if (maqStr.includes('26 - INSPECAO') || maqStr.includes('INSPECAO')) targetId = 'posto-qualidade';
+                else if (maqStr.includes('Ultrasom') || maqStr.includes('ULTRASOM')) targetId = 'posto-ultrasom';
+                else if (maqStr.includes('207 - OPERAÇÃO')) targetId = 'posto-externa';
+                else {
+                    if (maqStr.includes('LOGISTICA') || operacaoTexto.includes('LOGÍSTICA')) targetId = 'posto-logistica';
+                    else if (maqStr.includes('INSPECAO') || operacaoTexto.includes('INSPEÇÃO')) targetId = 'posto-qualidade';
+                    else if (maqStr.includes('Ultrasom') || operacaoTexto.includes('ULTRASOM')) targetId = 'posto-ultrasom';
+                    else if (maqStr.includes('EXTERNA') || operacaoTexto.includes('USINAGEM EXT.')) targetId = 'posto-externa';
+                    else targetId = 'posto-27';
+                }
+
+                cardCounter++;
+                var newCard = document.createElement('div');
+                newCard.className = currentUserRole === 'PCP' ? 'card status-fila draggable-enabled' : 'card status-fila';
+                newCard.id = "card-id-" + cardCounter;
+                
+                newCard.dataset.ofNum = ofNum;
+                newCard.dataset.anoOF = anoOF;
+                newCard.dataset.prodCode = prodCode;
+                newCard.dataset.qtd = qtd;
+                newCard.dataset.seqFase = seqFase;
+                newCard.dataset.operacaoTexto = operacaoTexto;
+                newCard.dataset.maquinaStr = maqStr;
+                newCard.dataset.customLink = itemLink;
+                newCard.dataset.descOp = descOp;
+                newCard.dataset.tempoMin = tempo;
+                newCard.dataset.cliente = cliente;
+                newCard.dataset.pdv = pdv;
+                newCard.dataset.tempoPausaMin = 0;
+                
+                var rawPdvEntrega = (pdvEntregaCol !== -1 && row[pdvEntregaCol]) ? parseExcelDate(row[pdvEntregaCol]) : null;
+                if (rawPdvEntrega) {
+                    newCard.dataset.dataEntregaPdv = rawPdvEntrega.toISOString();
+                }
+
+                if (targetId === 'posto-qualidade' || targetId === 'posto-ultrasom' || targetId === 'posto-logistica') {
+                    newCard.dataset.dependsOnPrevPhase = "true";
+                }
+
+                if (customStartTime) {
+                    newCard.dataset.excelStart = customStartTime.toISOString();
+                }
+
+                renderCardHTML(newCard);
+                if (currentUserRole === 'PCP') {
+                    makeCardDraggable(newCard);
+                }
+
+                var targetRowElem = document.getElementById(targetId);
+                if (targetRowElem) {
+                    targetRowElem.querySelector('.card-row-list').appendChild(newCard);
+                    total++;
+                }
+            }
+
+            atualizarCronogramaGeral();
+
+            var horaAtual = new Date().toLocaleTimeString();
+            document.getElementById('sync-status').innerText = "✔ CARREGADO ÀS " + horaAtual + " (" + total + " OFs Lidas)";
+            registrarAuditoria("SINCRONIZAR", "TODAS", "Planilha lida com sucesso (" + total + " OFs).");
+            document.getElementById('log-output').innerHTML = "🔄 <b>ARQUIVO CARREGADO:</b> " + total + " ordens lidas da aba <code>" + targetSheetName + "</code>.";
+
+            notifyChartUpdate();
+        }
+
+        function formatDateTime(dt) {
+            if (!dt || isNaN(dt.getTime())) return "N/A";
+            var day = String(dt.getDate()).padStart(2, '0');
+            var month = String(dt.getMonth() + 1).padStart(2, '0');
+            var hours = String(dt.getHours()).padStart(2, '0');
+            var mins = String(dt.getMinutes()).padStart(2, '0');
+            return day + '/' + month + ' ' + hours + ':' + mins;
+        }
+
+        function isWorkingTime(dt) {
+            var dayOfWeek = dt.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) return false;
+
+            var mmStr = String(dt.getMonth() + 1).padStart(2, '0');
+            var ddStr = String(dt.getDate()).padStart(2, '0');
+            var dateKey = `${dt.getFullYear()}-${mmStr}-${ddStr}`;
+
+            if (fabConfig.diasDesativados.includes(dateKey)) return false;
+
+            var h = dt.getHours();
+            var m = dt.getMinutes();
+            var timeInMins = h * 60 + m;
+
+            return (timeInMins >= fabConfig.t1StartMins && timeInMins < fabConfig.t1EndMins) || 
+                   (timeInMins >= fabConfig.t2StartMins && timeInMins < fabConfig.t2EndMins);
+        }
+
+        function advanceToNextWorkingMinute(dt) {
+            var safety = 0;
+            while (!isWorkingTime(dt) && safety < 10080) {
+                dt.setMinutes(dt.getMinutes() + 1);
+                safety++;
+            }
+        }
+
+        function addWorkingMinutes(startDt, minutes) {
+            var current = new Date(startDt.getTime());
+            advanceToNextWorkingMinute(current);
+
+            var added = 0;
+            while (added < minutes) {
+                current.setMinutes(current.getMinutes() + 1);
+                if (isWorkingTime(current)) {
+                    added++;
+                } else {
+                    advanceToNextWorkingMinute(current);
+                }
+            }
+            return current;
+        }
+
+        function checkPreviousPhaseCompleted(card) {
+            var currentSeq = parseInt(card.dataset.seqFase) || 0;
+            var targetOf = card.dataset.ofNum;
+            var targetAno = card.dataset.anoOF;
+            
+            if (currentSeq > 1) {
+                var targetPrevSeq = currentSeq - 1;
+                var allCards = document.querySelectorAll('.card');
+                var foundPrevPhase = false;
+                var prevPhaseCompleted = true;
+                
+                allCards.forEach(c => {
+                    if (c === card) return;
+                    if (c.dataset.ofNum === targetOf && c.dataset.anoOF === targetAno && parseInt(c.dataset.seqFase) === targetPrevSeq) {
+                        foundPrevPhase = true;
+                        if (!c.classList.contains('status-concluido')) {
+                            prevPhaseCompleted = false;
+                        }
+                    }
+                });
+                
+                if (foundPrevPhase && !prevPhaseCompleted) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function validarConflitoCronogramaFase(card) {
+            var currentSeq = parseInt(card.dataset.seqFase) || 0;
+            var targetOf = card.dataset.ofNum;
+            var targetAno = card.dataset.anoOF;
+            if (currentSeq <= 1) return { conflict: false };
+
+            var targetPrevSeq = currentSeq - 1;
+            var allCards = document.querySelectorAll('.card');
+            var prevCardEndISO = null;
+            var prevCardCompleted = true;
+
+            allCards.forEach(c => {
+                if (c === card) return;
+                if (c.dataset.ofNum === targetOf && c.dataset.anoOF === targetAno && parseInt(c.dataset.seqFase) === targetPrevSeq) {
+                    if (c.dataset.dtFim) {
+                        prevCardEndISO = c.dataset.dtFim;
+                    }
+                    if (!c.classList.contains('status-concluido')) {
+                        prevCardCompleted = false;
+                    }
+                }
+            });
+
+            if (!prevCardCompleted) {
+                var msg = `⚠️ CONFLITO DE FLUXO / ETAPA ANTECESSORA:\n\nA Fase ${currentSeq} da OF ${targetAno}/${targetOf} foi alocada, mas a Fase anterior (${targetPrevSeq}) ainda NÃO foi concluída!`;
+                return { conflict: true, message: msg };
+            }
+
+            if (prevCardEndISO && card.dataset.dtInicio) {
+                var prevEnd = new Date(prevCardEndISO);
+                var currentStart = new Date(card.dataset.dtInicio);
+                if (!isNaN(prevEnd.getTime()) && !isNaN(currentStart.getTime())) {
+                    if (currentStart < prevEnd) {
+                        var msg = `⚠️ CONFLITO DE PERÍODO / CRONOGRAMA:\n\nA Fase ${currentSeq} da OF ${targetAno}/${targetOf} iniciará antes da Fase anterior (${targetPrevSeq}) terminar!`;
+                        return { conflict: true, message: msg };
+                    }
+                }
+            }
+            return { conflict: false };
+        }
+
+        function atualizarCronogramaGeral() {
+            document.querySelectorAll('.machine-row').forEach(row => {
+                if (['posto-qualidade', 'posto-ultrasom', 'posto-logistica'].includes(row.id)) return;
+                var rId = row.id;
+                var isOutroRecursoEspecial = !['posto-13', 'posto-203', 'posto-202', 'posto-201-200', 'posto-100', 'posto-101', 'posto-102', 'posto-103', 'posto-104', 'posto-27'].includes(rId);
+
+                if (isOutroRecursoEspecial) {
+                    row.querySelectorAll('.card').forEach(cardOut => {
+                        var ofNum = cardOut.dataset.ofNum;
+                        var anoOF = cardOut.dataset.anoOF;
+                        var seqFaseOut = parseInt(cardOut.dataset.seqFase) || 0;
+
+                        if (seqFaseOut <= 1) {
+                            var allCards = document.querySelectorAll('.card');
+                            var successorStartISO = null;
+
+                            allCards.forEach(c => {
+                                if (c === cardOut) return;
+                                if (c.dataset.ofNum === ofNum && c.dataset.anoOF === anoOF) {
+                                    var cSeq = parseInt(c.dataset.seqFase) || 0;
+                                    if (cSeq > seqFaseOut || (seqFaseOut === 0 && cSeq > 0)) {
+                                        if (c.dataset.dtInicio) {
+                                            if (!successorStartISO || new Date(c.dataset.dtInicio) < new Date(successorStartISO)) {
+                                                successorStartISO = c.dataset.dtInicio;
+                                            }
+                                        }
+                                    }
+                                }
+                            });
+
+                            if (successorStartISO) {
+                                var succStartDt = new Date(successorStartISO);
+                                var endOut = new Date(succStartDt.getTime());
+                                endOut.setMinutes(endOut.getMinutes() - 30);
+                                
+                                var tempoMin = parseInt(cardOut.dataset.tempoMin) || 60;
+                                var startOut = new Date(endOut.getTime());
+                                startOut.setMinutes(startOut.getMinutes() - tempoMin);
+
+                                cardOut.dataset.dtInicio = startOut.toISOString();
+                                cardOut.dataset.dtFim = endOut.toISOString();
+
+                                var badgeDatas = cardOut.querySelector('.badge-datas');
+                                if (badgeDatas) {
+                                    badgeDatas.innerText = "📅 " + formatDateTime(startOut) + " ➔ " + formatDateTime(endOut);
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    updateRowStatusAndSchedule(row.querySelector('.card-row-list'), false);
+                }
+            });
+
+            // Processamento especial para postos dependentes: Inspeção, Ultrasom e Logística
+            ['posto-qualidade', 'posto-ultrasom', 'posto-logistica'].forEach(postoId => {
+                var pRow = document.getElementById(postoId);
+                if (!pRow) return;
+                
+                var cardsList = pRow.querySelectorAll('.card');
+                cardsList.forEach(cardDep => {
+                    var ofNum = cardDep.dataset.ofNum;
+                    var anoOF = cardDep.dataset.anoOF;
+                    var seqFaseDep = parseInt(cardDep.dataset.seqFase) || 0;
+                    
+                    var allCards = document.querySelectorAll('.card');
+                    var targetCardRef = null;
+                    
+                    allCards.forEach(c => {
+                        if (c === cardDep) return;
+                        if (c.dataset.ofNum === ofNum && c.dataset.anoOF === anoOF) {
+                            var cSeq = parseInt(c.dataset.seqFase) || 0;
+                            if (postoId === 'posto-logistica') {
+                                if (cSeq > seqFaseDep || (seqFaseDep === 0 && cSeq > 0)) {
+                                    if (!targetCardRef || cSeq < parseInt(targetCardRef.dataset.seqFase || 0)) {
+                                        targetCardRef = c;
+                                    }
+                                }
+                            } else {
+                                if (cSeq < seqFaseDep || (seqFaseDep === 0 && cSeq > 0)) {
+                                    if (c.dataset.dtFim) {
+                                        if (!targetCardRef || new Date(c.dataset.dtFim) > new Date(targetCardRef.dataset.dtFim)) {
+                                            targetCardRef = c;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    if (targetCardRef) {
+                        var tempoMin = parseInt(cardDep.dataset.tempoMin) || 60;
+                        var startDep, endDep;
+
+                        if (postoId === 'posto-logistica' && targetCardRef.dataset.dtInicio) {
+                            var succStart = new Date(targetCardRef.dataset.dtInicio);
+                            startDep = new Date(succStart.getTime());
+                            startDep.setDate(startDep.getDate() - 1);
+                            endDep = addWorkingMinutes(startDep, tempoMin);
+                        } else if (postoId === 'posto-ultrasom' && targetCardRef.dataset.dtFim) {
+                            var prevEndDt = new Date(targetCardRef.dataset.dtFim);
+                            startDep = addWorkingMinutes(prevEndDt, 30);
+                            endDep = addWorkingMinutes(startDep, tempoMin);
+                        } else if (postoId === 'posto-qualidade' && targetCardRef.dataset.dtFim) {
+                            var prevEndDt = new Date(targetCardRef.dataset.dtFim);
+                            startDep = addWorkingMinutes(prevEndDt, 30);
+                            endDep = addWorkingMinutes(startDep, tempoMin);
+                        }
+
+                        if (startDep && endDep) {
+                            cardDep.dataset.dtInicio = startDep.toISOString();
+                            cardDep.dataset.dtFim = endDep.toISOString();
+
+                            var badgeDatas = cardDep.querySelector('.badge-datas');
+                            if (badgeDatas) {
+                                badgeDatas.innerText = "📅 " + formatDateTime(startDep) + " ➔ " + formatDateTime(endDep);
+                            }
+                        }
+                    }
+                });
+            });
+
+            notifyChartUpdate();
+        }
+
+        function updateRowStatusAndSchedule(container, triggerGlobal = true) {
+            var machineRow = container.closest('.machine-row');
+            var machineId = machineRow ? machineRow.id : '';
+            var inativoInfo = fabConfig.recursosInativos[machineId];
+
+            var cards = [...container.querySelectorAll('.card')];
+            if (cards.length === 0) {
+                if (triggerGlobal) notifyChartUpdate();
+                return;
+            }
+
+            var currentTime = new Date();
+            advanceToNextWorkingMinute(currentTime);
+            var nowTime = new Date();
+
+            var hasCardInProcess = cards.some(c => c.classList.contains('status-processo') || c.classList.contains('status-pausado'));
+
+            cards.forEach((card, index) => {
+                if (card.dataset.dependsOnPrevPhase === "true" && (machineId === 'posto-qualidade' || machineId === 'posto-ultrasom' || machineId === 'posto-logistica')) return;
+
+                var isCompleted = card.classList.contains('status-concluido');
+                var isInProcess = card.classList.contains('status-processo');
+                var isPaused = card.classList.contains('status-pausado');
+
+                var btnIniciar = card.querySelector('.btn-iniciar');
+                var btnPausar = card.querySelector('.btn-pausar');
+                var btnFinalizar = card.querySelector('.btn-finalizar');
+                var btnVoltar = card.querySelector('.btn-voltar');
+                var btnEditar = card.querySelector('.btn-editar-card');
+                var indIndicator = card.querySelector('.card-status-indicator');
+
+                if (isCompleted) {
+                    card.className = currentUserRole === 'PCP' ? 'card status-concluido draggable-enabled' : 'card status-concluido';
+                    if (indIndicator) indIndicator.innerText = "Concluído";
+                    if (btnIniciar) btnIniciar.classList.add('disabled');
+                    if (btnPausar) btnPausar.classList.add('disabled');
+                    if (btnFinalizar) btnFinalizar.classList.add('disabled');
+                    if (btnVoltar) btnVoltar.classList.remove('disabled');
+                    if (btnEditar) btnEditar.classList.remove('disabled');
+
+                    if (card.dataset.fimRealISO) {
+                        currentTime = new Date(card.dataset.fimRealISO);
+                        advanceToNextWorkingMinute(currentTime);
+                    } else if (card.dataset.dtFim) {
+                        currentTime = new Date(card.dataset.dtFim);
+                        advanceToNextWorkingMinute(currentTime);
+                    }
+                    return;
+                }
+
+                var tempoMin = parseInt(card.dataset.tempoMin) || 60;
+                var pausaMin = parseInt(card.dataset.tempoPausaMin) || 0;
+                var totalTempoEfetivo = tempoMin + pausaMin;
+                var startTime;
+
+                if (card.dataset.inicioRealISO) {
+                    startTime = new Date(card.dataset.inicioRealISO);
+                } else if (card.dataset.manualStart) {
+                    var manualDt = new Date(card.dataset.manualStart);
+                    if (!isNaN(manualDt.getTime())) startTime = manualDt;
+                }
+
+                if (!startTime) {
+                    if (index === 0) {
+                        if (card.dataset.excelStart) {
+                            var excelDt = new Date(card.dataset.excelStart);
+                            startTime = !isNaN(excelDt.getTime()) ? new Date(excelDt.getTime()) : new Date(currentTime.getTime());
+                        } else {
+                            startTime = new Date(currentTime.getTime());
+                        }
+                    } else {
+                        var prevCard = cards[index - 1];
+                        if (prevCard && prevCard.dataset.fimRealISO) {
+                            startTime = new Date(prevCard.dataset.fimRealISO);
+                        } else if (prevCard && prevCard.dataset.dtFim) {
+                            startTime = new Date(prevCard.dataset.dtFim);
+                        } else {
+                            startTime = new Date(currentTime.getTime());
+                        }
+                    }
+                }
+
+                if (inativoInfo && inativoInfo.ativo && inativoInfo.inicio && inativoInfo.fim) {
+                    var inactStart = new Date(inativoInfo.inicio);
+                    var inactEnd = new Date(inativoInfo.fim);
+                    if (startTime >= inactStart && startTime <= inactEnd) {
+                        startTime = new Date(inactEnd.getTime());
+                    }
+                }
+
+                advanceToNextWorkingMinute(startTime);
+                var endTime = addWorkingMinutes(startTime, totalTempoEfetivo);
+
+                card.dataset.dtInicio = startTime.toISOString();
+                card.dataset.dtFim = endTime.toISOString();
+
+                var checkConflict = validarConflitoCronogramaFase(card);
+
+                if (checkConflict.conflict) {
+                    card.className = currentUserRole === 'PCP' ? 'card status-conflito draggable-enabled' : 'card status-conflito';
+                    if (indIndicator) indIndicator.innerText = "Conflito";
+                    
+                    if (btnIniciar) btnIniciar.classList.add('disabled');
+                    if (btnPausar) btnPausar.classList.add('disabled');
+                    if (btnFinalizar) btnFinalizar.classList.add('disabled');
+                    if (btnVoltar) btnVoltar.classList.remove('disabled');
+                    if (btnEditar) btnEditar.classList.remove('disabled');
+                } else {
+                    var shouldBeInProcess = (startTime <= nowTime) && !hasCardInProcess && index === 0;
+
+                    if (isPaused) {
+                        card.className = currentUserRole === 'PCP' ? 'card status-pausado draggable-enabled' : 'card status-pausado';
+                        if (indIndicator) indIndicator.innerText = "Pausado";
+                        if (btnIniciar) btnIniciar.classList.remove('disabled');
+                        if (btnPausar) btnPausar.classList.add('disabled');
+                        if (btnFinalizar) btnFinalizar.classList.add('disabled');
+                        if (btnVoltar) btnVoltar.classList.remove('disabled');
+                        if (btnEditar) btnEditar.classList.remove('disabled');
+                    } else if (isInProcess || shouldBeInProcess) {
+                        card.className = currentUserRole === 'PCP' ? 'card status-processo draggable-enabled' : 'card status-processo';
+                        if (indIndicator) indIndicator.innerText = "Em Processo";
+                        if (btnIniciar) btnIniciar.classList.add('disabled');
+                        if (btnPausar) btnPausar.classList.remove('disabled');
+                        if (btnFinalizar) btnFinalizar.classList.remove('disabled');
+                        if (btnVoltar) btnVoltar.classList.remove('disabled');
+                        if (btnEditar) btnEditar.classList.remove('disabled');
+                        hasCardInProcess = true;
+                    } else {
+                        card.className = currentUserRole === 'PCP' ? 'card status-fila draggable-enabled' : 'card status-fila';
+                        if (indIndicator) indIndicator.innerText = "Na Fila";
+                        if (btnPausar) btnPausar.classList.add('disabled');
+                        if (btnFinalizar) btnFinalizar.classList.add('disabled');
+                        if (btnVoltar) btnVoltar.classList.add('disabled');
+                        if (btnEditar) btnEditar.classList.remove('disabled');
+
+                        if (btnIniciar) {
+                            if (hasCardInProcess) {
+                                btnIniciar.classList.add('disabled');
+                            } else {
+                                btnIniciar.classList.remove('disabled');
+                            }
+                        }
+                    }
+                }
+
+                var badgeDatas = card.querySelector('.badge-datas');
+                if (badgeDatas) {
+                    badgeDatas.innerText = "📅 " + formatDateTime(startTime) + " ➔ " + formatDateTime(endTime);
+                }
+
+                currentTime = new Date(endTime.getTime());
+                advanceToNextWorkingMinute(currentTime);
+            });
+
+            if (triggerGlobal) {
+                atualizarCronogramaGeral();
+            }
+        }
+
+        function iniciarProcessoCard(button) {
+            var card = button.closest('.card');
+            if (!card || card.classList.contains('status-concluido') || button.classList.contains('disabled')) return;
+
+            if (!checkPreviousPhaseCompleted(card)) {
+                alert("⚠️ Impossível iniciar: A fase anterior deste produto/OF ainda não foi concluída!");
+                return;
+            }
+
+            var realNow = new Date();
+            if (!card.dataset.inicioRealISO) {
+                card.dataset.inicioRealISO = realNow.toISOString();
+                card.dataset.inicioReal = formatDateTime(realNow);
+            }
+
+            card.className = currentUserRole === 'PCP' ? 'card status-processo draggable-enabled' : 'card status-processo';
+            var ind = card.querySelector('.card-status-indicator');
+            if (ind) ind.innerText = "Em Processo";
+
+            registrarAuditoria("INICIAR_PROCESSO", card.dataset.ofNum, "OF " + card.dataset.ofNum + " iniciada/retomada.");
+            document.getElementById('log-output').innerHTML = "▶ <b>EM PROCESSO:</b> OF " + card.dataset.ofNum + " ativa.";
+
+            var parentList = card.closest('.card-row-list');
+            if (parentList) atualizarCronogramaGeral();
+        }
+
+        function pausarProcessoCard(button) {
+            var card = button.closest('.card');
+            if (!card || card.classList.contains('status-concluido') || button.classList.contains('disabled')) return;
+
+            var motivoPausa = prompt("Informe o motivo da pausa (Ex: Atestado médico, Ausência temporária, Prioridade de outra OF):", "Atestado / Ausência");
+            if (motivoPausa === null) return;
+
+            var tempoExtraPausa = prompt("Quantos minutos estimar para esta pausa?", "60");
+            var minsExtra = parseInt(tempoExtraPausa) || 60;
+
+            var currentPausa = parseInt(card.dataset.tempoPausaMin) || 0;
+            card.dataset.tempoPausaMin = currentPausa + minsExtra;
+
+            card.className = currentUserRole === 'PCP' ? 'card status-pausado draggable-enabled' : 'card status-pausado';
+            var ind = card.querySelector('.card-status-indicator');
+            if (ind) ind.innerText = "Pausado";
+
+            registrarAuditoria("PAUSAR_PROCESSO", card.dataset.ofNum, "OF " + card.dataset.ofNum + " pausada. Motivo: " + motivoPausa + " (" + minsExtra + " min).");
+            document.getElementById('log-output').innerHTML = "⏸ <b>PAUSADO:</b> OF " + card.dataset.ofNum + " pausada por [" + motivoPausa + "] (" + minsExtra + " min adicionados ao cronograma).";
+
+            atualizarCronogramaGeral();
+        }
+
+        function finishCardProcess(button) {
+            var card = button.closest('.card');
+            if (!card || card.classList.contains('status-concluido') || button.classList.contains('disabled')) return;
+
+            var realNow = new Date();
+            card.dataset.fimRealISO = realNow.toISOString();
+            card.dataset.fimReal = formatDateTime(realNow);
+
+            if (!card.dataset.inicioRealISO) {
+                card.dataset.inicioRealISO = realNow.toISOString();
+                card.dataset.inicioReal = formatDateTime(realNow);
+            }
+
+            var ofTexto = card.dataset.ofNum;
+            card.className = currentUserRole === 'PCP' ? 'card status-concluido draggable-enabled' : 'card status-concluido';
+            
+            registrarAuditoria("FINALIZAR_PROCESSO", ofTexto, "OF " + ofTexto + " finalizada.");
+            document.getElementById('log-output').innerHTML = "✅ <b>OF CONCLUÍDA:</b> OF " + ofTexto + " finalizada às <b>" + formatDateTime(realNow) + "</b>.";
+
+            atualizarCronogramaGeral();
+        }
+
+        function voltarStatusCard(button) {
+            var card = button.closest('.card');
+            if (!card || button.classList.contains('disabled')) return;
+
+            var ofTexto = card.dataset.ofNum;
+            delete card.dataset.inicioRealISO;
+            delete card.dataset.inicioReal;
+            delete card.dataset.fimRealISO;
+            delete card.dataset.fimReal;
+            card.dataset.tempoPausaMin = 0;
+
+            card.className = currentUserRole === 'PCP' ? 'card status-fila draggable-enabled' : 'card status-fila';
+            
+            registrarAuditoria("VOLTAR_STATUS", ofTexto, "Status da OF " + ofTexto + " revertido.");
+            document.getElementById('log-output').innerHTML = "↩️ <b>STATUS REVERTIDO:</b> OF " + ofTexto + " voltou para a fila.";
+
+            atualizarCronogramaGeral();
+        }
+
+        function openAddModal() { if (currentUserRole !== 'PCP') return; document.getElementById('modal-add').classList.add('active'); }
+        function closeAddModal() { document.getElementById('modal-add').classList.remove('active'); }
+
+        function saveNewCardFromModal() {
+            if (currentUserRole !== 'PCP') return;
+            var ofNum = document.getElementById('add-of').value.trim();
+            var anoOF = document.getElementById('add-ano').value.trim() || new Date().getFullYear();
+            var prodCode = document.getElementById('add-prod').value.trim();
+            var qtd = parseInt(document.getElementById('add-qtd').value.trim()) || 1;
+            var seqFase = parseInt(document.getElementById('add-fase').value.trim()) || 1;
+            var operacaoTexto = document.getElementById('add-operacao').value.trim();
+            var customLink = document.getElementById('add-link').value.trim();
+            var descOp = document.getElementById('add-desc').value.trim();
+            var tempo = parseInt(document.getElementById('add-tempo').value.trim());
+            var cliente = document.getElementById('add-cliente').value.trim();
+            var pdv = document.getElementById('add-pdv').value.trim();
+            var postoId = document.getElementById('add-posto').value;
+            var manualStartVal = document.getElementById('add-data-inicio').value;
+            var dataEntregaPdvVal = document.getElementById('add-data-entrega-pdv').value;
+
+            if (!ofNum || !descOp) { alert("Preencha a OF e a Descrição."); return; }
+            if (!tempo || isNaN(tempo)) tempo = 60;
+            cardCounter++;
+
+            var newCard = document.createElement('div');
+            newCard.className = 'card status-fila draggable-enabled';
+            newCard.id = "card-id-" + cardCounter;
+            
+            newCard.dataset.ofNum = ofNum;
+            newCard.dataset.anoOF = anoOF;
+            newCard.dataset.prodCode = prodCode;
+            newCard.dataset.qtd = qtd;
+            newCard.dataset.seqFase = seqFase;
+            newCard.dataset.operacaoTexto = operacaoTexto;
+            newCard.dataset.tempoPausaMin = 0;
+            
+            var targetRowElem = document.getElementById(postoId);
+            var machineName = targetRowElem ? targetRowElem.querySelector('.machine-header h4').innerText : "27 - Bancada de Ajuste";
+            newCard.dataset.maquinaStr = machineName;
+
+            newCard.dataset.customLink = customLink;
+            newCard.dataset.descOp = descOp;
+            newCard.dataset.tempoMin = tempo;
+            newCard.dataset.cliente = cliente;
+            newCard.dataset.pdv = pdv;
+            
+            if (manualStartVal) {
+                newCard.dataset.manualStart = new Date(manualStartVal).toISOString();
+            }
+            if (dataEntregaPdvVal) {
+                newCard.dataset.dataEntregaPdv = new Date(dataEntregaPdvVal).toISOString();
+            }
+
+            if (postoId === 'posto-qualidade' || postoId === 'posto-ultrasom' || postoId === 'posto-logistica') {
+                newCard.dataset.dependsOnPrevPhase = "true";
+            }
+
+            renderCardHTML(newCard);
+            makeCardDraggable(newCard);
+
+            if (targetRowElem) {
+                var rowList = targetRowElem.querySelector('.card-row-list');
+                rowList.appendChild(newCard);
+                atualizarCronogramaGeral();
+                registrarAuditoria("ADICIONAR_CARTÃO", ofNum, "Adicionado novo cartão manualmente.");
+                document.getElementById('log-output').innerHTML = "➕ <b>CARTÃO INSERIDO:</b> OF " + anoOF + "/" + ofNum + " inserida!";
+            }
+
+            closeAddModal();
+        }
+
+        function openEditModal(button) {
+            var card = button.closest('.card');
+            if (!card || button.classList.contains('disabled')) return;
+
+            if (currentUserRole === 'Industrial') {
+                var novoTempo = prompt("Digite o novo tempo de processo em minutos:", card.dataset.tempoMin || 60);
+                if (novoTempo !== null) {
+                    var parsed = parseInt(novoTempo);
+                    if (!isNaN(parsed) && parsed > 0) {
+                        card.dataset.tempoMin = parsed;
+                        var badgeTempo = card.querySelector('.badge-tempo');
+                        if (badgeTempo) badgeTempo.innerText = `⏱ ${parsed} min (${(parsed/60).toFixed(1)}h)`;
+                        atualizarCronogramaGeral();
+                        alert("✔ Tempo de processo alterado com sucesso!");
+                        registrarAuditoria("EDITAR_TEMPO_OPERADOR", card.dataset.ofNum, "Operador alterou o tempo para " + parsed + " min.");
+                        document.getElementById('log-output').innerHTML = "✏️ <b>TEMPO ALTERADO (Operador):</b> OF " + card.dataset.ofNum + " atualizada para " + parsed + " min.";
+                    } else {
+                        alert("Valor inválido.");
+                    }
+                }
+                return;
+            }
+
+            document.getElementById('edit-card-id').value = card.id;
+            document.getElementById('edit-of').value = card.dataset.ofNum || '';
+            document.getElementById('edit-ano').value = card.dataset.anoOF || '';
+            document.getElementById('edit-prod').value = card.dataset.prodCode || '';
+            document.getElementById('edit-qtd').value = card.dataset.qtd || '1';
+            document.getElementById('edit-fase').value = card.dataset.seqFase || '1';
+            document.getElementById('edit-tempo').value = card.dataset.tempoMin || '60';
+            document.getElementById('edit-operacao').value = card.dataset.operacaoTexto || '';
+            document.getElementById('edit-desc').value = card.dataset.descOp || '';
+            document.getElementById('edit-link').value = card.dataset.customLink || '';
+            document.getElementById('edit-cliente').value = card.dataset.cliente || '';
+            document.getElementById('edit-pdv').value = card.dataset.pdv || '';
+
+            if (card.dataset.manualStart) {
+                var dtObj = new Date(card.dataset.manualStart);
+                if (!isNaN(dtObj.getTime())) {
+                    document.getElementById('edit-data-inicio').value = dtObj.toISOString().slice(0,16);
+                }
+            } else {
+                document.getElementById('edit-data-inicio').value = "";
+            }
+
+            if (card.dataset.dataEntregaPdv) {
+                var pdvObj = new Date(card.dataset.dataEntregaPdv);
+                if (!isNaN(pdvObj.getTime())) {
+                    document.getElementById('edit-data-entrega-pdv').value = pdvObj.toISOString().slice(0,10);
+                }
+            } else {
+                document.getElementById('edit-data-entrega-pdv').value = "";
+            }
+
+            var parentRow = card.closest('.machine-row');
+            if (parentRow) document.getElementById('edit-posto').value = parentRow.id;
+
+            document.getElementById('modal-edit').classList.add('active');
+        }
+
+        function closeEditModal() { document.getElementById('modal-edit').classList.remove('active'); }
+
+        function saveEditedCardFromModal() {
+            if (currentUserRole !== 'PCP') return;
+            var cardId = document.getElementById('edit-card-id').value;
+            var card = document.getElementById(cardId);
+            if (!card) return;
+
+            var oldPostoRow = card.closest('.machine-row');
+            var oldPostoId = oldPostoRow ? oldPostoRow.id : null;
+            var newPostoId = document.getElementById('edit-posto').value;
+            var newTargetRowElem = document.getElementById(newPostoId);
+
+            var ofNum = document.getElementById('edit-of').value.trim();
+            card.dataset.ofNum = ofNum;
+            card.dataset.anoOF = document.getElementById('edit-ano').value.trim();
+            card.dataset.prodCode = document.getElementById('edit-prod').value.trim();
+            card.dataset.qtd = parseInt(document.getElementById('edit-qtd').value.trim()) || 1;
+            card.dataset.seqFase = parseInt(document.getElementById('edit-fase').value.trim()) || 0;
+            card.dataset.operacaoTexto = document.getElementById('edit-operacao').value.trim();
+            card.dataset.tempoMin = parseInt(document.getElementById('edit-tempo').value.trim()) || 60;
+            card.dataset.descOp = document.getElementById('edit-desc').value.trim();
+            card.dataset.customLink = document.getElementById('edit-link').value.trim();
+            card.dataset.cliente = document.getElementById('edit-cliente').value.trim();
+            card.dataset.pdv = document.getElementById('edit-pdv').value.trim();
+
+            var manualStartVal = document.getElementById('edit-data-inicio').value;
+            if (manualStartVal) {
+                card.dataset.manualStart = new Date(manualStartVal).toISOString();
+            } else {
+                delete card.dataset.manualStart;
+            }
+
+            var dataEntregaPdvVal = document.getElementById('edit-data-entrega-pdv').value;
+            if (dataEntregaPdvVal) {
+                card.dataset.dataEntregaPdv = new Date(dataEntregaPdvVal).toISOString();
+            } else {
+                delete card.dataset.dataEntregaPdv;
+            }
+
+            if (newPostoId === 'posto-qualidade' || newPostoId === 'posto-ultrasom' || newPostoId === 'posto-logistica') {
+                card.dataset.dependsOnPrevPhase = "true";
+            } else {
+                delete card.dataset.dependsOnPrevPhase;
+            }
+
+            if (newTargetRowElem) {
+                card.dataset.maquinaStr = newTargetRowElem.querySelector('.machine-header h4').innerText;
+            }
+
+            renderCardHTML(card);
+
+            if (oldPostoId && oldPostoId !== newPostoId) {
+                if (newTargetRowElem) {
+                    newTargetRowElem.querySelector('.card-row-list').appendChild(card);
+                }
+            }
+
+            atualizarCronogramaGeral();
+
+            registrarAuditoria("EDITAR_CARTÃO", ofNum, "Informações alteradas para a OF " + ofNum);
+            document.getElementById('log-output').innerHTML = "✏️ <b>ALTERADO:</b> OF " + ofNum + " atualizada!";
+            closeEditModal();
+        }
+
+        function renderCardHTML(card) {
+            var ofNum = card.dataset.ofNum;
+            var anoOF = card.dataset.anoOF;
+            var prodCode = card.dataset.prodCode || 'N/A';
+            var qtd = card.dataset.qtd || '1';
+            var seqFase = card.dataset.seqFase || '0';
+            var operacaoTexto = card.dataset.operacaoTexto || '';
+            var customLink = card.dataset.customLink;
+            var descOp = card.dataset.descOp;
+            var tempo = card.dataset.tempoMin;
+            var cliente = card.dataset.cliente || 'Não informado';
+            var pdv = card.dataset.pdv || 'N/A';
+
+            var prodFormatted = customLink 
+                ? `<a href="${customLink}" target="_blank" onclick="event.stopPropagation();" title="Abrir pasta/desenho no servidor">${prodCode} 🔗</a>`
+                : prodCode;
+
+            var faseBadgeText = seqFase && seqFase !== '0' ? `Fase ${seqFase}` : 'Fase -';
+            var opBadgeHTML = operacaoTexto ? `<span class="badge-operacao" title="${operacaoTexto}">Op: ${operacaoTexto}</span>` : '';
+
+            var btnAlterarHTML = `<button class="btn-editar-card" onclick="event.stopPropagation(); openEditModal(this);">✏️ Alterar</button>`;
+
+            card.innerHTML = `
+                <div class="card-header-row">
+                    <span class="card-of">OF: ${anoOF} / ${ofNum}</span>
+                    <span class="card-status-indicator">Na Fila</span>
+                    <span class="card-cod">Cód: ${prodFormatted}</span>
+                </div>
+                <div class="card-desc" title="${descOp}">${descOp}</div>
+                <div class="card-middle-row">
+                    <span class="badge-fase">${faseBadgeText}</span>
+                    <span class="badge-qtd" title="Quantidade de peças">📦 Qtd: ${qtd}</span>
+                    ${opBadgeHTML}
+                    <span class="badge-tempo">⏱ ${tempo} min (${(tempo/60).toFixed(1)}h)</span>
+                    <span class="badge-datas">📅 Calculando...</span>
+                </div>
+                <div class="card-footer-row">
+                    <span class="card-client" title="${cliente}"><strong>Cli:</strong> ${cliente}</span>
+                    <span class="card-pdv">PDV: ${pdv}</span>
+                </div>
+                <div class="card-action-row">
+                    <button class="btn-iniciar" onclick="event.stopPropagation(); iniciarProcessoCard(this);" title="Iniciar Processo">▶ Iniciar</button>
+                    <button class="btn-pausar" onclick="event.stopPropagation(); pausarProcessoCard(this);" title="Pausar Processo">⏸ Pausar</button>
+                    <button class="btn-finalizar" onclick="event.stopPropagation(); finishCardProcess(this);" title="Finalizar Processo">✔ Finalizar</button>
+                    <button class="btn-voltar" onclick="event.stopPropagation(); voltarStatusCard(this);" title="Voltar Status / Reverter">↩️ Voltar</button>
+                    ${btnAlterarHTML}
+                </div>
+            `;
+        }
+
+        function initDragAndDropEvents() {
+            document.querySelectorAll('.card-row-list').forEach(list => {
+                list.addEventListener('dragover', function(e) {
+                    if (currentUserRole !== 'PCP') return;
+                    e.preventDefault();
+                    this.classList.add('drag-over');
+                    var afterElement = getDragAfterElement(this, e.clientX);
+                    if (afterElement == null) {
+                        this.appendChild(draggedCard);
+                    } else {
+                        this.insertBefore(draggedCard, afterElement);
+                    }
+                });
+
+                list.addEventListener('dragleave', function() { if (currentUserRole === 'PCP') this.classList.remove('drag-over'); });
+
+                list.addEventListener('drop', function(e) {
+                    if (currentUserRole !== 'PCP') return;
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
+                    
+                    var newMachineRow = this.closest('.machine-row');
+                    if (newMachineRow && draggedCard) {
+                        var newMachineName = newMachineRow.querySelector('.machine-header h4').innerText;
+                        draggedCard.dataset.maquinaStr = newMachineName;
+                        registrarAuditoria("MOVER_CARTÃO", draggedCard.dataset.ofNum, "Cartão movido para o posto: " + newMachineName);
+                    }
+
+                    atualizarCronogramaGeral();
+
+                    var checkConflict = validarConflitoCronogramaFase(draggedCard);
+                    if (checkConflict.conflict) {
+                        alert(checkConflict.message);
+                        registrarAuditoria("ALERTA_CONFLITO", draggedCard.dataset.ofNum, checkConflict.message.replace(/\n/g, ' '));
+                    }
+                });
+            });
+        }
+
+        function makeCardDraggable(card) {
+            if (currentUserRole !== 'PCP') return;
+            card.setAttribute('draggable', 'true');
+            card.addEventListener('dragstart', function(e) {
+                draggedCard = this;
+                sourceRow = this.closest('.machine-row');
+                setTimeout(() => this.classList.add('dragging'), 0);
+            });
+            card.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+                atualizarCronogramaGeral();
+                draggedCard = null;
+                sourceRow = null;
+            });
+        }
+
+        function getDragAfterElement(container, x) {
+            var draggableElements = [...container.querySelectorAll('.card:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                var box = child.getBoundingClientRect();
+                var offset = x - box.left - box.width / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        window.onload = initDragAndDropEvents;
+    </script>
+</body>
+</html>
